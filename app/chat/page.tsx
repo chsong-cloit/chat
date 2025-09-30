@@ -26,7 +26,7 @@ export default function ChatPage() {
 
   const loadMessages = useCallback(async () => {
     if (!userName) return; // userName이 없으면 실행하지 않음
-    
+
     try {
       const response = await fetch("/api/messages");
       if (response.ok) {
@@ -77,7 +77,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (userName && isInitialized) {
       loadMessages();
-      
+
       // 3초마다 메시지 새로고침
       const interval = setInterval(loadMessages, 3000);
       return () => clearInterval(interval);
@@ -288,7 +288,7 @@ export default function ChatPage() {
 
       {/* 메시지 입력 */}
       <div className="border-t bg-background">
-        <MessageInput onSendMessage={handleSendMessage} />
+        <MessageInput onSend={handleSendMessage} />
       </div>
     </div>
   );
