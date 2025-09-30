@@ -90,9 +90,14 @@ export default function ChatPage() {
             sseConnected = true;
             console.log("SSE 연결 성공!");
           } else if (data.type === "new_message") {
+            // 자신이 보낸 메시지는 SSE에서 무시 (이미 로컬에 추가됨)
+            if (data.message.senderName === userName) {
+              return;
+            }
+
             const newMessage = {
               ...data.message,
-              isOwn: data.message.senderName === userName,
+              isOwn: false, // 다른 사람 메시지
             };
 
             setMessages((prev) => {
@@ -130,23 +135,6 @@ export default function ChatPage() {
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
 
-    // 즉시 로컬에 메시지 추가 (낙관적 업데이트)
-    const tempMessage = {
-      id: crypto.randomUUID(),
-      text: text.trim(),
-      senderId: entryMode === "github" 
-        ? session?.user?.id || session?.user?.email 
-        : userName,
-      senderName: userName,
-      senderAvatar: entryMode === "github"
-        ? session?.user?.avatar || session?.user?.image
-        : null,
-      timestamp: Date.now(),
-      isOwn: true,
-    };
-
-    setMessages((prev) => [...prev, tempMessage]);
-
     try {
       const response = await fetch("/api/messages", {
         method: "POST",
@@ -170,23 +158,17 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // 서버에서 받은 실제 메시지로 교체
-        setMessages((prev) => 
-          prev.map(msg => 
-            msg.id === tempMessage.id 
-              ? { ...data.message, isOwn: true }
-              : msg
-          )
-        );
+        // 서버에서 받은 메시지를 즉시 추가
+        const newMessage = {
+          ...data.message,
+          isOwn: true,
+        };
+        setMessages((prev) => [...prev, newMessage]);
       } else {
-        // 전송 실패 시 임시 메시지 제거
-        setMessages((prev) => prev.filter(msg => msg.id !== tempMessage.id));
         console.error("메시지 전송 실패");
       }
     } catch (error) {
       console.error("메시지 전송 오류:", error);
-      // 전송 실패 시 임시 메시지 제거
-      setMessages((prev) => prev.filter(msg => msg.id !== tempMessage.id));
     }
   };
 

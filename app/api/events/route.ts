@@ -15,7 +15,7 @@ export function broadcastMessage(message: any) {
       clients.delete(controller);
     }
   });
-  
+
   console.log(`SSE 브로드캐스트 완료. 연결된 클라이언트: ${clients.size}개`);
 }
 
