@@ -134,7 +134,7 @@ export default function ChatPage() {
         eventSource.close();
       };
     }
-  }, [userName, isInitialized, loadMessages]);
+  }, [userName, isInitialized]); // loadMessages 의존성 제거
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
@@ -181,10 +181,12 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // 서버에서 받은 실제 메시지로 교체
+        // 서버에서 받은 실제 메시지로 교체 (isOwn은 true로 유지)
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === tempMessage.id ? { ...data.message, isOwn: true } : msg
+            msg.id === tempMessage.id 
+              ? { ...data.message, isOwn: true, senderName: userName } 
+              : msg
           )
         );
         // 메시지 전송 후 즉시 새로고침으로 다른 사용자 메시지 확인
