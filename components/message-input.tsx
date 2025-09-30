@@ -21,6 +21,11 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME 입력 중일 때는 처리하지 않음 (한글, 일본어, 중국어 등의 조합 입력)
+    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()

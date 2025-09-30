@@ -78,56 +78,11 @@ export default function ChatPage() {
     if (userName && isInitialized) {
       loadMessages();
 
-      // SSE 연결 설정
-      const eventSource = new EventSource("/api/events");
-      let sseConnected = false;
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === "connected") {
-            sseConnected = true;
-            console.log("SSE 연결 성공!");
-          } else if (data.type === "new_message") {
-            // 자신이 보낸 메시지는 SSE에서 무시 (이미 로컬에 추가됨)
-            if (data.message.senderName === userName) {
-              return;
-            }
-
-            const newMessage = {
-              ...data.message,
-              isOwn: false, // 다른 사람 메시지
-            };
-
-            setMessages((prev) => {
-              // 중복 메시지 방지
-              const exists = prev.some((msg) => msg.id === newMessage.id);
-              if (exists) return prev;
-
-              return [...prev, newMessage];
-            });
-          }
-        } catch (error) {
-          console.error("SSE 메시지 파싱 오류:", error);
-        }
-      };
-
-      eventSource.onerror = (error) => {
-        console.error("SSE 연결 오류:", error);
-        sseConnected = false;
-      };
-
-      // SSE가 실패할 경우를 대비한 빠른 폴링 (1초마다)
-      const fallbackInterval = setInterval(() => {
-        if (!sseConnected) {
-          loadMessages();
-        }
-      }, 1000);
+      // 빠른 폴링으로 실시간 채팅 (1초마다)
+      const interval = setInterval(loadMessages, 1000);
 
       return () => {
-        eventSource.close();
-        clearInterval(fallbackInterval);
+        clearInterval(interval);
       };
     }
   }, [userName, isInitialized, loadMessages]);
