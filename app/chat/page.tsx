@@ -26,7 +26,7 @@ export default function ChatPage() {
 
   const loadMessages = useCallback(async () => {
     if (!userName) return; // userName이 없으면 실행하지 않음
-    
+
     try {
       console.log("메시지 로드 시작...");
       const response = await fetch("/api/messages");
@@ -184,13 +184,12 @@ export default function ChatPage() {
         // 서버에서 받은 실제 메시지로 교체 (isOwn은 true로 유지)
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === tempMessage.id 
-              ? { ...data.message, isOwn: true, senderName: userName } 
+            msg.id === tempMessage.id
+              ? { ...data.message, isOwn: true, senderName: userName }
               : msg
           )
         );
-        // 메시지 전송 후 즉시 새로고침으로 다른 사용자 메시지 확인
-        setTimeout(() => loadMessages(), 100);
+        // loadMessages 호출 제거 - SSE로 다른 사용자 메시지 수신
       } else {
         // 전송 실패 시 임시 메시지 제거
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
