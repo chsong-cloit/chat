@@ -26,7 +26,7 @@ export default function ChatPage() {
 
   const loadMessages = useCallback(async () => {
     if (!userName) return; // userName이 없으면 실행하지 않음
-
+    
     try {
       console.log("메시지 로드 시작...");
       const response = await fetch("/api/messages");
@@ -44,9 +44,8 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("메시지 로드 오류:", error);
-    } finally {
-      setLoading(false);
     }
+    // setLoading 제거 - 로딩 상태 변경하지 않음
   }, [userName]);
 
   // 초기화 useEffect (한 번만 실행)
@@ -82,6 +81,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (userName && isInitialized) {
       loadMessages();
+      setLoading(false); // 초기 로딩 완료
 
       // SSE만 사용 (폴링 제거)
       const eventSource = new EventSource("/api/events");

@@ -46,7 +46,10 @@ export async function GET(request: NextRequest) {
         try {
           controller.enqueue(
             new TextEncoder().encode(
-              `data: ${JSON.stringify({ type: "heartbeat", timestamp: Date.now() })}\n\n`
+              `data: ${JSON.stringify({
+                type: "heartbeat",
+                timestamp: Date.now(),
+              })}\n\n`
             )
           );
         } catch (error) {
