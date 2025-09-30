@@ -60,55 +60,85 @@ export default function ChatPage() {
     if (userName && isInitialized) {
       setLoading(false); // 초기 로딩 완료
 
-      // SSE만 사용 (폴링 완전 제거)
-      const eventSource = new EventSource("/api/events");
+      let eventSource: EventSource | null = null;
+      let reconnectAttempts = 0;
+      const maxReconnectAttempts = 5;
+      let reconnectTimeout: NodeJS.Timeout | null = null;
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log("SSE 메시지 수신:", data);
-
-          if (data.type === "connected") {
-            console.log("SSE 연결 성공!");
-          } else if (data.type === "new_message") {
-            // 자신이 보낸 메시지는 SSE에서 무시 (이미 로컬에 추가됨)
-            if (data.message.senderName === userName) {
-              console.log("자신의 메시지 무시:", data.message.text);
-              return;
-            }
-
-            const newMessage = {
-              ...data.message,
-              isOwn: false, // 다른 사람 메시지
-            };
-
-            console.log("새 메시지 추가:", newMessage.text);
-            setMessages((prev) => {
-              // 중복 메시지 방지
-              const exists = prev.some((msg) => msg.id === newMessage.id);
-              if (exists) return prev;
-
-              return [...prev, newMessage];
-            });
-          }
-        } catch (error) {
-          console.error("SSE 메시지 파싱 오류:", error);
-        }
-      };
-
-      eventSource.onerror = (error) => {
-        console.error("SSE 연결 오류:", error);
-        // SSE 연결 오류 시 재연결 시도
-        setTimeout(() => {
-          console.log("SSE 재연결 시도...");
+      const connectSSE = () => {
+        if (eventSource) {
           eventSource.close();
-          // 페이지 새로고침으로 재연결
-          window.location.reload();
-        }, 3000);
+        }
+
+        eventSource = new EventSource("/api/events");
+
+        eventSource.onopen = () => {
+          console.log("SSE 연결 성공!");
+          reconnectAttempts = 0; // 연결 성공 시 재시도 횟수 리셋
+        };
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("SSE 메시지 수신:", data);
+
+            if (data.type === "connected") {
+              console.log("SSE 연결 확인됨!");
+            } else if (data.type === "new_message") {
+              // 자신이 보낸 메시지는 SSE에서 무시 (이미 로컬에 추가됨)
+              if (data.message.senderName === userName) {
+                console.log("자신의 메시지 무시:", data.message.text);
+                return;
+              }
+
+              const newMessage = {
+                ...data.message,
+                isOwn: false, // 다른 사람 메시지
+              };
+
+              console.log("새 메시지 추가:", newMessage.text);
+              setMessages((prev) => {
+                // 중복 메시지 방지
+                const exists = prev.some((msg) => msg.id === newMessage.id);
+                if (exists) return prev;
+
+                return [...prev, newMessage];
+              });
+            }
+          } catch (error) {
+            console.error("SSE 메시지 파싱 오류:", error);
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          console.error("SSE 연결 오류:", error);
+          
+          if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // 지수 백오프, 최대 10초
+            
+            console.log(`SSE 재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts} (${delay}ms 후)`);
+            
+            reconnectTimeout = setTimeout(() => {
+              connectSSE();
+            }, delay);
+          } else {
+            console.error("SSE 재연결 실패: 최대 재시도 횟수 초과");
+            // 사용자에게 알림을 표시할 수 있음
+          }
+        };
       };
+
+      // 초기 연결
+      connectSSE();
 
       return () => {
-        eventSource.close();
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+        }
+        if (eventSource) {
+          eventSource.close();
+        }
       };
     }
   }, [userName, isInitialized]); // loadMessages 의존성 제거

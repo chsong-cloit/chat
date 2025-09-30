@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       }, 30000);
 
       // 클라이언트 연결 해제 시 하트비트 정리
-      const originalCancel = () => {
+      const cleanup = () => {
         clearInterval(heartbeatInterval);
         clients.delete(clientId);
         console.log(
@@ -68,16 +68,16 @@ export async function GET(request: NextRequest) {
         );
       };
 
-      // cancel 함수 오버라이드
-      stream.cancel = originalCancel;
+      // cleanup 함수를 controller에 저장
+      (controller as any).cleanup = cleanup;
     },
 
     cancel() {
       // 클라이언트 연결 제거
-      clients.delete(clientId);
-      console.log(
-        `SSE 클라이언트 연결 해제됨: ${clientId}. 총 ${clients.size}개 연결`
-      );
+      const controller = clients.get(clientId);
+      if (controller && (controller as any).cleanup) {
+        (controller as any).cleanup();
+      }
     },
   });
 
@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
       Connection: "keep-alive",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Cache-Control",
+      "X-Accel-Buffering": "no", // Nginx 버퍼링 비활성화
     },
   });
 }
