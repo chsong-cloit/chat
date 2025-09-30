@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,12 +11,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.push("/chats");
+    }
+  }, [session, status, router]);
 
   const handleGitHubSignIn = async () => {
     setLoading(true);
@@ -31,6 +39,11 @@ export function AuthForm() {
       setLoading(false);
     }
   };
+
+  // 이미 로그인된 경우 아무것도 표시하지 않음
+  if (status === "authenticated") {
+    return null;
+  }
 
   return (
     <Card className="w-full max-w-md">
