@@ -78,8 +78,8 @@ export default function ChatPage() {
     if (userName && isInitialized) {
       loadMessages();
 
-      // 트래픽 최적화를 위해 3초마다 폴링
-      const interval = setInterval(loadMessages, 3000);
+      // 다른 사용자 메시지 실시간 수신을 위해 1초마다 폴링
+      const interval = setInterval(loadMessages, 1000);
 
       return () => {
         clearInterval(interval);
