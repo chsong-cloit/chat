@@ -3,6 +3,11 @@ import { createClient } from "redis";
 let redisClient: ReturnType<typeof createClient> | null = null;
 
 export async function getRedisClient() {
+  // 서버 사이드에서만 Redis 클라이언트 생성
+  if (typeof window !== "undefined") {
+    throw new Error("Redis client can only be used on server side");
+  }
+
   if (!redisClient) {
     redisClient = createClient({
       url:

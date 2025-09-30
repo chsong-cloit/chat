@@ -1,5 +1,4 @@
 import type { User } from "./types";
-import { getRedisClient } from "./redis";
 
 export async function getCurrentUser(userId?: string): Promise<User | null> {
   if (typeof window !== "undefined") {
@@ -14,10 +13,11 @@ export async function getCurrentUser(userId?: string): Promise<User | null> {
     }
   }
 
-  // 서버 사이드에서는 Redis 사용
+  // 서버 사이드에서는 Redis 사용 (동적 import로 빌드 오류 방지)
   if (!userId) return null;
-
+  
   try {
+    const { getRedisClient } = await import("./redis");
     const redis = await getRedisClient();
     const userData = await redis.get(`user:${userId}`);
 
@@ -43,6 +43,7 @@ export function setCurrentUser(user: User | null) {
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
+    const { getRedisClient } = await import("./redis");
     const redis = await getRedisClient();
     const userId = await redis.get(`user:email:${email}`);
 
@@ -61,6 +62,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function saveUser(user: User): Promise<void> {
   try {
+    const { getRedisClient } = await import("./redis");
     const redis = await getRedisClient();
     await redis.set(`user:${user.id}`, JSON.stringify(user));
     await redis.set(`user:email:${user.email}`, user.id);
