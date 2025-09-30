@@ -18,7 +18,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, isBot, userName, entryMode, senderId, senderAvatar } =
+    const { text, userName, entryMode, senderId, senderAvatar } =
       await request.json();
     if (!text || !text.trim()) {
       return NextResponse.json(
@@ -30,16 +30,16 @@ export async function POST(request: NextRequest) {
     const message = {
       id: crypto.randomUUID(),
       text: text.trim(),
-      senderId: isBot ? "bot" : senderId || userName,
-      senderName: isBot ? "봇" : userName,
-      senderAvatar: isBot ? null : senderAvatar,
+      senderId: senderId || userName,
+      senderName: userName,
+      senderAvatar: senderAvatar,
       timestamp: Date.now(),
       isOwn: false, // 서버에서는 항상 false
     };
 
     // 메모리에 메시지 저장
     memoryMessages.unshift(message); // 최신 메시지를 앞에 추가
-
+    
     // 최대 100개 메시지만 유지
     if (memoryMessages.length > 100) {
       memoryMessages = memoryMessages.slice(0, 100);

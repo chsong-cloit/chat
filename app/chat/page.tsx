@@ -116,29 +116,6 @@ export default function ChatPage() {
         };
 
         setMessages((prev) => [...prev, newMessage]);
-
-        // 간단한 봇 응답 시뮬레이션
-        setTimeout(async () => {
-          const botResponse = await fetch("/api/messages", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              text: `안녕하세요! "${text.trim()}"라고 하셨군요.`,
-              isBot: true,
-            }),
-          });
-
-          if (botResponse.ok) {
-            const botData = await botResponse.json();
-            const botMessage = {
-              ...botData.message,
-              isOwn: false,
-            };
-            setMessages((prev) => [...prev, botMessage]);
-          }
-        }, 1000);
       }
     } catch (error) {
       console.error("메시지 전송 오류:", error);
