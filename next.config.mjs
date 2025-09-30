@@ -15,6 +15,8 @@ const nextConfig = {
     NEXTAUTH_SECRET:
       "kakaotalk-clone-secret-key-2024-very-secure-random-string",
     NEXTAUTH_URL: "https://v0-kakao-talk-clone.vercel.app/",
+    REDIS_URL:
+      "redis://default:OGt0RrnSnJbRKMZbOwTCk4BfGTwNyur0@redis-15838.c340.ap-northeast-2-1.ec2.redns.redis-cloud.com:15838",
   },
 };
 

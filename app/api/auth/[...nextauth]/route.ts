@@ -13,7 +13,25 @@ const handler = NextAuth({
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account && profile) {
-        // 사용자 정보를 토큰에 저장
+        // Redis에 사용자 정보 저장 (서버 사이드에서만)
+        try {
+          const { getRedisClient } = await import("@/lib/redis");
+          const redis = await getRedisClient();
+          const userData = {
+            id: profile.id?.toString() || profile.sub,
+            name: profile.name || profile.login,
+            email: profile.email,
+            avatar: profile.avatar_url,
+            statusMessage: "",
+          };
+
+          await redis.set(`user:${profile.sub}`, JSON.stringify(userData));
+          await redis.set(`user:email:${profile.email}`, profile.sub);
+        } catch (error) {
+          console.error("Redis 저장 실패:", error);
+        }
+
+        // 토큰에도 사용자 정보 저장
         token.user = {
           id: profile.id?.toString() || profile.sub,
           name: profile.name || profile.login,
