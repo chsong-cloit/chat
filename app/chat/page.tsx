@@ -78,8 +78,8 @@ export default function ChatPage() {
     if (userName && isInitialized) {
       loadMessages();
 
-      // 빠른 폴링으로 실시간 채팅 (1초마다)
-      const interval = setInterval(loadMessages, 1000);
+      // 초고속 폴링으로 실시간 채팅 (500ms마다)
+      const interval = setInterval(loadMessages, 500);
 
       return () => {
         clearInterval(interval);
@@ -89,6 +89,23 @@ export default function ChatPage() {
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
+
+    // 즉시 로컬에 메시지 추가 (낙관적 업데이트)
+    const tempMessage = {
+      id: crypto.randomUUID(),
+      text: text.trim(),
+      senderId: entryMode === "github" 
+        ? session?.user?.id || session?.user?.email 
+        : userName,
+      senderName: userName,
+      senderAvatar: entryMode === "github"
+        ? session?.user?.avatar || session?.user?.image
+        : null,
+      timestamp: Date.now(),
+      isOwn: true,
+    };
+
+    setMessages((prev) => [...prev, tempMessage]);
 
     try {
       const response = await fetch("/api/messages", {
@@ -113,17 +130,23 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // 서버에서 받은 메시지를 즉시 추가
-        const newMessage = {
-          ...data.message,
-          isOwn: true,
-        };
-        setMessages((prev) => [...prev, newMessage]);
+        // 서버에서 받은 실제 메시지로 교체
+        setMessages((prev) => 
+          prev.map(msg => 
+            msg.id === tempMessage.id 
+              ? { ...data.message, isOwn: true }
+              : msg
+          )
+        );
       } else {
+        // 전송 실패 시 임시 메시지 제거
+        setMessages((prev) => prev.filter(msg => msg.id !== tempMessage.id));
         console.error("메시지 전송 실패");
       }
     } catch (error) {
       console.error("메시지 전송 오류:", error);
+      // 전송 실패 시 임시 메시지 제거
+      setMessages((prev) => prev.filter(msg => msg.id !== tempMessage.id));
     }
   };
 
