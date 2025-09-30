@@ -26,7 +26,7 @@ export default function ChatPage() {
 
   const loadMessages = useCallback(async () => {
     if (!userName) return; // userName이 없으면 실행하지 않음
-    
+
     try {
       console.log("메시지 로드 시작...");
       const response = await fetch("/api/messages");
@@ -126,11 +126,11 @@ export default function ChatPage() {
         sseConnected = false;
       };
 
-      // 안정적인 폴링 (2초마다) - SSE가 실패해도 작동
+      // 빠른 폴링 (1초마다) - 실시간성 향상
       const pollingInterval = setInterval(() => {
         console.log("폴링 실행 - SSE 연결 상태:", sseConnected);
         loadMessages();
-      }, 2000);
+      }, 1000);
 
       return () => {
         eventSource.close();
