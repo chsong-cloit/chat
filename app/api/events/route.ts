@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server";
 
-// Vercel Edge Runtime 사용
-export const config = {
-  runtime: "edge",
-};
+// Next.js 14 호환 Edge Runtime 설정
+export const runtime = "edge";
 
 // 연결된 클라이언트들을 저장
 const clients = new Map<string, ReadableStreamDefaultController>();
