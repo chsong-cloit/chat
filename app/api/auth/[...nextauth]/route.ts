@@ -13,42 +13,21 @@ const handler = NextAuth({
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account && profile) {
-        // Redis에 사용자 정보 저장 (동적 import로 빌드 오류 방지)
-        try {
-          const { getRedisClient } = await import("@/lib/redis");
-          const redis = await getRedisClient();
-          const userData = {
-            id: profile.id?.toString() || profile.sub,
-            name: profile.name || profile.login,
-            email: profile.email,
-            avatar: profile.avatar_url,
-            statusMessage: "",
-          };
-
-          await redis.set(`user:${profile.sub}`, JSON.stringify(userData));
-          await redis.set(`user:email:${profile.email}`, profile.sub);
-        } catch (error) {
-          console.error("Redis 저장 실패:", error);
-        }
+        // 사용자 정보를 토큰에 저장
+        token.user = {
+          id: profile.id?.toString() || profile.sub,
+          name: profile.name || profile.login,
+          email: profile.email,
+          avatar: profile.avatar_url,
+          statusMessage: "",
+        };
       }
-
       return token;
     },
     async session({ session, token }) {
-      if (token.sub) {
-        try {
-          const { getRedisClient } = await import("@/lib/redis");
-          const redis = await getRedisClient();
-          const userData = await redis.get(`user:${token.sub}`);
-
-          if (userData) {
-            session.user = JSON.parse(userData);
-          }
-        } catch (error) {
-          console.error("Redis에서 사용자 정보 가져오기 실패:", error);
-        }
+      if (token.user) {
+        session.user = token.user as any;
       }
-
       return session;
     },
   },

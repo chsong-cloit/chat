@@ -1,51 +1,16 @@
 import type { User } from "./types";
 
 export function getCurrentUser(): User | null {
-  if (typeof window !== "undefined") {
-    // 클라이언트 사이드에서는 localStorage 사용
-    const userStr = localStorage.getItem("currentUser");
-    if (!userStr) return null;
+  if (typeof window === "undefined") return null;
 
-    try {
-      return JSON.parse(userStr);
-    } catch {
-      return null;
-    }
-  }
+  const userStr = localStorage.getItem("currentUser");
+  if (!userStr) return null;
 
-  // 서버 사이드에서는 null 반환 (Redis는 별도 함수로 처리)
-  return null;
-}
-
-export async function getCurrentUserAsync(userId?: string): Promise<User | null> {
-  if (typeof window !== "undefined") {
-    // 클라이언트 사이드에서는 localStorage 사용
-    const userStr = localStorage.getItem("currentUser");
-    if (!userStr) return null;
-
-    try {
-      return JSON.parse(userStr);
-    } catch {
-      return null;
-    }
-  }
-
-  // 서버 사이드에서는 Redis 사용 (동적 import로 빌드 오류 방지)
-  if (!userId) return null;
-  
   try {
-    const { getRedisClient } = await import("./redis");
-    const redis = await getRedisClient();
-    const userData = await redis.get(`user:${userId}`);
-
-    if (userData) {
-      return JSON.parse(userData);
-    }
-  } catch (error) {
-    console.error("Redis에서 사용자 정보 가져오기 실패:", error);
+    return JSON.parse(userStr);
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 export function setCurrentUser(user: User | null) {
@@ -55,36 +20,6 @@ export function setCurrentUser(user: User | null) {
     localStorage.setItem("currentUser", JSON.stringify(user));
   } else {
     localStorage.removeItem("currentUser");
-  }
-}
-
-export async function getUserByEmail(email: string): Promise<User | null> {
-  try {
-    const { getRedisClient } = await import("./redis");
-    const redis = await getRedisClient();
-    const userId = await redis.get(`user:email:${email}`);
-
-    if (userId) {
-      const userData = await redis.get(`user:${userId}`);
-      if (userData) {
-        return JSON.parse(userData);
-      }
-    }
-  } catch (error) {
-    console.error("Redis에서 사용자 정보 가져오기 실패:", error);
-  }
-
-  return null;
-}
-
-export async function saveUser(user: User): Promise<void> {
-  try {
-    const { getRedisClient } = await import("./redis");
-    const redis = await getRedisClient();
-    await redis.set(`user:${user.id}`, JSON.stringify(user));
-    await redis.set(`user:email:${user.email}`, user.id);
-  } catch (error) {
-    console.error("Redis에 사용자 정보 저장 실패:", error);
   }
 }
 
