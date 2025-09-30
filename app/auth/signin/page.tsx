@@ -1,42 +1,48 @@
-"use client"
+"use client";
 
-import { signIn, getSession } from 'next-auth/react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { signIn, getSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function SignIn() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // 이미 로그인된 사용자인지 확인
     getSession().then((session) => {
       if (session) {
-        router.push('/chats')
+        router.push("/chats");
       }
-    })
-  }, [router])
+    });
+  }, [router]);
 
   const handleGoogleSignIn = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await signIn('google', { 
-        callbackUrl: '/chats',
-        redirect: false 
-      })
-      
+      const result = await signIn("google", {
+        callbackUrl: "/chats",
+        redirect: false,
+      });
+
       if (result?.ok) {
-        router.push('/chats')
-        router.refresh()
+        router.push("/chats");
+        router.refresh();
       }
     } catch (error) {
-      console.error('로그인 오류:', error)
+      console.error("로그인 오류:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -44,7 +50,12 @@ export default function SignIn() {
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
-              <svg className="w-10 h-10 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-10 h-10 text-primary-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -60,7 +71,7 @@ export default function SignIn() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button 
+          <Button
             onClick={handleGoogleSignIn}
             disabled={loading}
             className="w-full bg-white hover:bg-gray-50 text-gray-900 border border-gray-300"
@@ -84,10 +95,10 @@ export default function SignIn() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            {loading ? '로그인 중...' : 'Google로 로그인'}
+            {loading ? "로그인 중..." : "Google로 로그인"}
           </Button>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
