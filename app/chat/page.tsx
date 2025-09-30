@@ -77,12 +77,42 @@ export default function ChatPage() {
   useEffect(() => {
     if (userName && isInitialized) {
       loadMessages();
-
-      // 3초마다 메시지 새로고침
-      const interval = setInterval(loadMessages, 3000);
-      return () => clearInterval(interval);
+      
+      // SSE 연결 설정
+      const eventSource = new EventSource("/api/events");
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === "new_message") {
+            const newMessage = {
+              ...data.message,
+              isOwn: data.message.senderName === userName,
+            };
+            
+            setMessages((prev) => {
+              // 중복 메시지 방지
+              const exists = prev.some(msg => msg.id === newMessage.id);
+              if (exists) return prev;
+              
+              return [...prev, newMessage];
+            });
+          }
+        } catch (error) {
+          console.error("SSE 메시지 파싱 오류:", error);
+        }
+      };
+      
+      eventSource.onerror = (error) => {
+        console.error("SSE 연결 오류:", error);
+      };
+      
+      return () => {
+        eventSource.close();
+      };
     }
-  }, [userName, isInitialized, loadMessages]);
+  }, [userName, isInitialized]);
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
