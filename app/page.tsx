@@ -13,8 +13,8 @@ export default function HomePage() {
     if (status === "loading") return; // 로딩 중일 때는 아무것도 하지 않음
 
     if (session) {
-      // 로그인된 사용자는 채팅 페이지로 리디렉션
-      router.push("/chats");
+      // 로그인된 사용자는 채팅방으로 리디렉션
+      router.push("/chat");
     }
   }, [session, status, router]);
 

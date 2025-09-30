@@ -22,15 +22,15 @@ export function AuthForm() {
   // 로그인 상태 확인
   useEffect(() => {
     if (status === "authenticated" && session) {
-      router.push("/chats");
+      router.push("/chat");
     }
   }, [session, status, router]);
 
   const handleGitHubSignIn = async () => {
     setLoading(true);
     try {
-      const result = await signIn("github", {
-        callbackUrl: "/chats",
+      const result =       await signIn("github", {
+        callbackUrl: "/chat",
         redirect: true, // 자동 리디렉션 활성화
       });
     } catch (error) {

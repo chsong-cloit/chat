@@ -53,7 +53,7 @@ const handler = NextAuth({
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       // 외부 URL인 경우 기본 페이지로
       else if (new URL(url).origin === baseUrl) return url;
-      return `${baseUrl}/chats`;
+      return `${baseUrl}/chat`;
     },
   },
   pages: {

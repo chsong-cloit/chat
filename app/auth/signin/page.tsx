@@ -20,7 +20,7 @@ export default function SignIn() {
     // 이미 로그인된 사용자인지 확인
     getSession().then((session) => {
       if (session) {
-        router.push("/chats");
+        router.push("/chat");
       }
     });
   }, [router]);
@@ -29,7 +29,7 @@ export default function SignIn() {
     setLoading(true);
     try {
       const result = await signIn("github", {
-        callbackUrl: "/chats",
+        callbackUrl: "/chat",
         redirect: true, // 자동 리디렉션 활성화
       });
     } catch (error) {
