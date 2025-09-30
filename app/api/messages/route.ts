@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { getRedisClient } from "@/lib/redis";
 
 export async function GET() {
   try {
-    const session = await getServerSession();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const redis = await getRedisClient();
     const messages = await redis.lrange("chat:messages", 0, -1);
     
@@ -23,12 +17,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { text, isBot } = await request.json();
+    const { text, isBot, userName, entryMode, senderId, senderAvatar } = await request.json();
     if (!text || !text.trim()) {
       return NextResponse.json({ error: "Message text is required" }, { status: 400 });
     }
@@ -36,9 +25,9 @@ export async function POST(request: NextRequest) {
     const message = {
       id: crypto.randomUUID(),
       text: text.trim(),
-      senderId: isBot ? "bot" : (session.user.id || session.user.email),
-      senderName: isBot ? "봇" : (session.user.name || "사용자"),
-      senderAvatar: isBot ? null : (session.user.avatar || session.user.image),
+      senderId: isBot ? "bot" : (senderId || userName),
+      senderName: isBot ? "봇" : userName,
+      senderAvatar: isBot ? null : senderAvatar,
       timestamp: Date.now(),
       isOwn: false, // 서버에서는 항상 false
     };

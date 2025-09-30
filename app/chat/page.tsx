@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { MessageBubble } from "@/components/message-bubble";
 import { MessageInput } from "@/components/message-input";
 
 interface Message {
@@ -21,22 +20,38 @@ export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string>("");
+  const [entryMode, setEntryMode] = useState<"github" | "name">("github");
 
   useEffect(() => {
-    if (status === "loading") return;
-
-    if (status === "unauthenticated") {
-      router.push("/");
-      return;
-    }
-
+    // GitHub 로그인 확인
     if (status === "authenticated" && session?.user) {
+      setEntryMode("github");
+      setUserName(session.user.name || "사용자");
       loadMessages();
       
       // 3초마다 메시지 새로고침 (실시간 효과)
       const interval = setInterval(loadMessages, 3000);
-      
       return () => clearInterval(interval);
+    }
+    
+    // 이름으로 입장한 경우 확인
+    if (status === "unauthenticated") {
+      const savedName = localStorage.getItem("userName");
+      const savedMode = localStorage.getItem("entryMode");
+      
+      if (savedName && savedMode === "name") {
+        setEntryMode("name");
+        setUserName(savedName);
+        loadMessages();
+        
+        // 3초마다 메시지 새로고침 (실시간 효과)
+        const interval = setInterval(loadMessages, 3000);
+        return () => clearInterval(interval);
+      } else {
+        router.push("/");
+        return;
+      }
     }
   }, [session, status, router]);
 
@@ -47,7 +62,7 @@ export default function ChatPage() {
         const data = await response.json();
         const messagesWithOwnership = data.messages.map((msg: Message) => ({
           ...msg,
-          isOwn: msg.senderId === (session?.user?.id || session?.user?.email),
+          isOwn: msg.senderName === userName,
         }));
         setMessages(messagesWithOwnership.reverse()); // 최신 메시지가 아래에 오도록
       }
@@ -59,7 +74,7 @@ export default function ChatPage() {
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!session?.user || !text.trim()) return;
+    if (!userName || !text.trim()) return;
 
     try {
       const response = await fetch("/api/messages", {
@@ -67,7 +82,13 @@ export default function ChatPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ 
+          text, 
+          userName,
+          entryMode,
+          senderId: entryMode === "github" ? (session?.user?.id || session?.user?.email) : userName,
+          senderAvatar: entryMode === "github" ? (session?.user?.avatar || session?.user?.image) : null
+        }),
       });
 
       if (response.ok) {
@@ -107,7 +128,7 @@ export default function ChatPage() {
     }
   };
 
-  if (status === "loading" || loading) {
+  if (loading) {
     return (
       <div className="flex flex-col h-screen bg-background">
         <div className="flex-1 flex items-center justify-center">
@@ -134,10 +155,6 @@ export default function ChatPage() {
     );
   }
 
-  if (status === "unauthenticated") {
-    return null;
-  }
-
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* 헤더 */}
@@ -145,7 +162,7 @@ export default function ChatPage() {
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <span className="text-primary-foreground font-semibold">
-              {(session?.user?.name || "U")[0].toUpperCase()}
+              {userName[0].toUpperCase()}
             </span>
           </div>
           <div>
