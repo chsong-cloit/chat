@@ -29,7 +29,7 @@ export function AuthForm() {
   const handleGitHubSignIn = async () => {
     setLoading(true);
     try {
-      const result =       await signIn("github", {
+      const result = await signIn("github", {
         callbackUrl: "/chat",
         redirect: true, // 자동 리디렉션 활성화
       });
