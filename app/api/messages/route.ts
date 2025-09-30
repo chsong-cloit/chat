@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { broadcastMessage } from "../events/route";
 
 // 메모리 기반 메시지 저장 (Redis 대신 사용)
 let memoryMessages: any[] = [];
@@ -44,6 +45,12 @@ export async function POST(request: NextRequest) {
     if (memoryMessages.length > 100) {
       memoryMessages = memoryMessages.slice(0, 100);
     }
+
+    // 모든 연결된 클라이언트에게 실시간 브로드캐스트
+    broadcastMessage({
+      type: "new_message",
+      message: message,
+    });
 
     return NextResponse.json({ message });
   } catch (error) {
