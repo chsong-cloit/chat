@@ -55,10 +55,29 @@ export default function ChatPage() {
     }
   }, [session, status, router, isInitialized]);
 
-  // userName이 설정된 후 SSE 연결만 설정
+  // userName이 설정된 후 초기 메시지 불러오기 및 SSE 연결
   useEffect(() => {
     if (userName && isInitialized) {
-      setLoading(false); // 초기 로딩 완료
+      // 초기 메시지 불러오기
+      const loadInitialMessages = async () => {
+        try {
+          const response = await fetch("/api/messages");
+          if (response.ok) {
+            const data = await response.json();
+            const loadedMessages = data.messages.map((msg: any) => ({
+              ...msg,
+              isOwn: msg.senderName === userName,
+            }));
+            setMessages(loadedMessages);
+          }
+        } catch (error) {
+          console.error("초기 메시지 로딩 오류:", error);
+        } finally {
+          setLoading(false); // 초기 로딩 완료
+        }
+      };
+
+      loadInitialMessages();
 
       let eventSource: EventSource | null = null;
       let reconnectAttempts = 0;
@@ -112,13 +131,18 @@ export default function ChatPage() {
 
         eventSource.onerror = (error) => {
           console.error("SSE 연결 오류:", error);
-          
+
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts++;
-            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // 지수 백오프, 최대 10초
-            
-            console.log(`SSE 재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts} (${delay}ms 후)`);
-            
+            const delay = Math.min(
+              1000 * Math.pow(2, reconnectAttempts),
+              10000
+            ); // 지수 백오프, 최대 10초
+
+            console.log(
+              `SSE 재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts} (${delay}ms 후)`
+            );
+
             reconnectTimeout = setTimeout(() => {
               connectSSE();
             }, delay);
