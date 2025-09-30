@@ -77,25 +77,29 @@ export default function ChatPage() {
   useEffect(() => {
     if (userName && isInitialized) {
       loadMessages();
-      
+
       // SSE 연결 설정
       const eventSource = new EventSource("/api/events");
-      
+      let sseConnected = false;
+
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
-          if (data.type === "new_message") {
+
+          if (data.type === "connected") {
+            sseConnected = true;
+            console.log("SSE 연결 성공!");
+          } else if (data.type === "new_message") {
             const newMessage = {
               ...data.message,
               isOwn: data.message.senderName === userName,
             };
-            
+
             setMessages((prev) => {
               // 중복 메시지 방지
-              const exists = prev.some(msg => msg.id === newMessage.id);
+              const exists = prev.some((msg) => msg.id === newMessage.id);
               if (exists) return prev;
-              
+
               return [...prev, newMessage];
             });
           }
@@ -103,19 +107,45 @@ export default function ChatPage() {
           console.error("SSE 메시지 파싱 오류:", error);
         }
       };
-      
+
       eventSource.onerror = (error) => {
         console.error("SSE 연결 오류:", error);
+        sseConnected = false;
       };
-      
+
+      // SSE가 실패할 경우를 대비한 빠른 폴링 (1초마다)
+      const fallbackInterval = setInterval(() => {
+        if (!sseConnected) {
+          loadMessages();
+        }
+      }, 1000);
+
       return () => {
         eventSource.close();
+        clearInterval(fallbackInterval);
       };
     }
-  }, [userName, isInitialized]);
+  }, [userName, isInitialized, loadMessages]);
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
+
+    // 즉시 로컬에 메시지 추가 (낙관적 업데이트)
+    const tempMessage = {
+      id: crypto.randomUUID(),
+      text: text.trim(),
+      senderId: entryMode === "github" 
+        ? session?.user?.id || session?.user?.email 
+        : userName,
+      senderName: userName,
+      senderAvatar: entryMode === "github"
+        ? session?.user?.avatar || session?.user?.image
+        : null,
+      timestamp: Date.now(),
+      isOwn: true,
+    };
+
+    setMessages((prev) => [...prev, tempMessage]);
 
     try {
       const response = await fetch("/api/messages", {
@@ -140,15 +170,23 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        const newMessage = {
-          ...data.message,
-          isOwn: true,
-        };
-
-        setMessages((prev) => [...prev, newMessage]);
+        // 서버에서 받은 실제 메시지로 교체
+        setMessages((prev) => 
+          prev.map(msg => 
+            msg.id === tempMessage.id 
+              ? { ...data.message, isOwn: true }
+              : msg
+          )
+        );
+      } else {
+        // 전송 실패 시 임시 메시지 제거
+        setMessages((prev) => prev.filter(msg => msg.id !== tempMessage.id));
+        console.error("메시지 전송 실패");
       }
     } catch (error) {
       console.error("메시지 전송 오류:", error);
+      // 전송 실패 시 임시 메시지 제거
+      setMessages((prev) => prev.filter(msg => msg.id !== tempMessage.id));
     }
   };
 
