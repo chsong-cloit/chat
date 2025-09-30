@@ -48,6 +48,13 @@ const handler = NextAuth({
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // 로그인 후 원래 페이지로 돌아가기
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // 외부 URL인 경우 기본 페이지로
+      else if (new URL(url).origin === baseUrl) return url;
+      return `${baseUrl}/chats`;
+    },
   },
   pages: {
     signIn: "/auth/signin",

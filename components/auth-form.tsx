@@ -23,13 +23,8 @@ export function AuthForm() {
     try {
       const result = await signIn("github", {
         callbackUrl: "/chats",
-        redirect: false,
+        redirect: true, // 자동 리디렉션 활성화
       });
-
-      if (result?.ok) {
-        router.push("/chats");
-        router.refresh();
-      }
     } catch (error) {
       console.error("로그인 오류:", error);
     } finally {
