@@ -24,29 +24,7 @@ export default function ChatPage() {
   const [entryMode, setEntryMode] = useState<"github" | "name">("github");
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const loadMessages = useCallback(async () => {
-    if (!userName) return; // userName이 없으면 실행하지 않음
-
-    try {
-      console.log("메시지 로드 시작...");
-      const response = await fetch("/api/messages");
-      if (response.ok) {
-        const data = await response.json();
-        console.log("서버에서 받은 메시지:", data.messages.length, "개");
-        const messagesWithOwnership = data.messages.map((msg: Message) => ({
-          ...msg,
-          isOwn: msg.senderName === userName,
-        }));
-        setMessages(messagesWithOwnership.reverse());
-        console.log("메시지 업데이트 완료");
-      } else {
-        console.error("메시지 로드 실패:", response.status);
-      }
-    } catch (error) {
-      console.error("메시지 로드 오류:", error);
-    }
-    // setLoading 제거 - 로딩 상태 변경하지 않음
-  }, [userName]);
+  // loadMessages 함수 완전 제거 - SSE만 사용
 
   // 초기화 useEffect (한 번만 실행)
   useEffect(() => {
@@ -77,13 +55,12 @@ export default function ChatPage() {
     }
   }, [session, status, router, isInitialized]);
 
-  // userName이 설정된 후 메시지 로드
+  // userName이 설정된 후 SSE 연결만 설정
   useEffect(() => {
     if (userName && isInitialized) {
-      loadMessages();
       setLoading(false); // 초기 로딩 완료
 
-      // SSE만 사용 (폴링 제거)
+      // SSE만 사용 (폴링 완전 제거)
       const eventSource = new EventSource("/api/events");
 
       eventSource.onmessage = (event) => {
