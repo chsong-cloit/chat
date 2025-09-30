@@ -22,8 +22,11 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>("");
   const [entryMode, setEntryMode] = useState<"github" | "name">("github");
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const loadMessages = useCallback(async () => {
+    if (!userName) return; // userName이 없으면 실행하지 않음
+    
     try {
       const response = await fetch("/api/messages");
       if (response.ok) {
@@ -32,7 +35,7 @@ export default function ChatPage() {
           ...msg,
           isOwn: msg.senderName === userName,
         }));
-        setMessages(messagesWithOwnership.reverse()); // 최신 메시지가 아래에 오도록
+        setMessages(messagesWithOwnership.reverse());
       }
     } catch (error) {
       console.error("메시지 로드 오류:", error);
@@ -41,16 +44,16 @@ export default function ChatPage() {
     }
   }, [userName]);
 
+  // 초기화 useEffect (한 번만 실행)
   useEffect(() => {
+    if (isInitialized) return;
+
     // GitHub 로그인 확인
     if (status === "authenticated" && session?.user) {
       setEntryMode("github");
       setUserName(session.user.name || "사용자");
-      loadMessages();
-
-      // 3초마다 메시지 새로고침 (실시간 효과)
-      const interval = setInterval(loadMessages, 3000);
-      return () => clearInterval(interval);
+      setIsInitialized(true);
+      return;
     }
 
     // 이름으로 입장한 경우 확인
@@ -61,17 +64,25 @@ export default function ChatPage() {
       if (savedName && savedMode === "name") {
         setEntryMode("name");
         setUserName(savedName);
-        loadMessages();
-
-        // 3초마다 메시지 새로고침 (실시간 효과)
-        const interval = setInterval(loadMessages, 3000);
-        return () => clearInterval(interval);
+        setIsInitialized(true);
+        return;
       } else {
         router.push("/");
         return;
       }
     }
-  }, [session, status, router, loadMessages]);
+  }, [session, status, router, isInitialized]);
+
+  // userName이 설정된 후 메시지 로드
+  useEffect(() => {
+    if (userName && isInitialized) {
+      loadMessages();
+      
+      // 3초마다 메시지 새로고침
+      const interval = setInterval(loadMessages, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [userName, isInitialized, loadMessages]);
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
