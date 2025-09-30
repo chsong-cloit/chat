@@ -83,9 +83,8 @@ export default function ChatPage() {
     if (userName && isInitialized) {
       loadMessages();
 
-      // SSE 연결 시도
+      // SSE만 사용 (폴링 제거)
       const eventSource = new EventSource("/api/events");
-      let sseConnected = false;
 
       eventSource.onmessage = (event) => {
         try {
@@ -93,7 +92,6 @@ export default function ChatPage() {
           console.log("SSE 메시지 수신:", data);
 
           if (data.type === "connected") {
-            sseConnected = true;
             console.log("SSE 연결 성공!");
           } else if (data.type === "new_message") {
             // 자신이 보낸 메시지는 SSE에서 무시 (이미 로컬에 추가됨)
@@ -123,18 +121,17 @@ export default function ChatPage() {
 
       eventSource.onerror = (error) => {
         console.error("SSE 연결 오류:", error);
-        sseConnected = false;
+        // SSE 연결 오류 시 재연결 시도
+        setTimeout(() => {
+          console.log("SSE 재연결 시도...");
+          eventSource.close();
+          // 페이지 새로고침으로 재연결
+          window.location.reload();
+        }, 3000);
       };
-
-      // 빠른 폴링 (1초마다) - 실시간성 향상
-      const pollingInterval = setInterval(() => {
-        console.log("폴링 실행 - SSE 연결 상태:", sseConnected);
-        loadMessages();
-      }, 1000);
 
       return () => {
         eventSource.close();
-        clearInterval(pollingInterval);
       };
     }
   }, [userName, isInitialized, loadMessages]);

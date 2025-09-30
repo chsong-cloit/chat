@@ -40,6 +40,33 @@ export async function GET(request: NextRequest) {
       console.log(
         `SSE 클라이언트 연결됨: ${clientId}. 총 ${clients.size}개 연결`
       );
+
+      // 하트비트 전송 (30초마다)
+      const heartbeatInterval = setInterval(() => {
+        try {
+          controller.enqueue(
+            new TextEncoder().encode(
+              `data: ${JSON.stringify({ type: "heartbeat", timestamp: Date.now() })}\n\n`
+            )
+          );
+        } catch (error) {
+          console.error(`하트비트 전송 오류 (${clientId}):`, error);
+          clearInterval(heartbeatInterval);
+          clients.delete(clientId);
+        }
+      }, 30000);
+
+      // 클라이언트 연결 해제 시 하트비트 정리
+      const originalCancel = () => {
+        clearInterval(heartbeatInterval);
+        clients.delete(clientId);
+        console.log(
+          `SSE 클라이언트 연결 해제됨: ${clientId}. 총 ${clients.size}개 연결`
+        );
+      };
+
+      // cancel 함수 오버라이드
+      stream.cancel = originalCancel;
     },
 
     cancel() {
