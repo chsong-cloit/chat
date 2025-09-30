@@ -1,6 +1,23 @@
 import type { User } from "./types";
 
-export async function getCurrentUser(userId?: string): Promise<User | null> {
+export function getCurrentUser(): User | null {
+  if (typeof window !== "undefined") {
+    // 클라이언트 사이드에서는 localStorage 사용
+    const userStr = localStorage.getItem("currentUser");
+    if (!userStr) return null;
+
+    try {
+      return JSON.parse(userStr);
+    } catch {
+      return null;
+    }
+  }
+
+  // 서버 사이드에서는 null 반환 (Redis는 별도 함수로 처리)
+  return null;
+}
+
+export async function getCurrentUserAsync(userId?: string): Promise<User | null> {
   if (typeof window !== "undefined") {
     // 클라이언트 사이드에서는 localStorage 사용
     const userStr = localStorage.getItem("currentUser");

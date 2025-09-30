@@ -5,7 +5,9 @@ const handler = NextAuth({
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID || "Ov23liNcStj0gptCInkY",
-      clientSecret: process.env.GITHUB_CLIENT_PASSWD || "a34ffe732110c2f92440500d8f5aff9249649ffb",
+      clientSecret:
+        process.env.GITHUB_CLIENT_PASSWD ||
+        "a34ffe732110c2f92440500d8f5aff9249649ffb",
     }),
   ],
   callbacks: {

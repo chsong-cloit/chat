@@ -11,25 +11,28 @@ import type { ChatWithDetails } from "@/lib/types"
 
 export default function ChatsPage() {
   const [chats, setChats] = useState<ChatWithDetails[]>([])
+  const [user, setUser] = useState<any>(null)
   const router = useRouter()
-  const user = getCurrentUser()
 
   useEffect(() => {
-    if (!user) {
+    // 클라이언트 사이드에서 사용자 정보 가져오기
+    const currentUser = getCurrentUser()
+    setUser(currentUser)
+
+    if (!currentUser) {
       router.push("/")
       return
     }
 
     // Initialize demo data on first load
-    initializeDemoData(user.id)
+    initializeDemoData(currentUser.id)
 
     // Load chats
-    loadChats()
-  }, [user, router])
+    loadChats(currentUser.id)
+  }, [router])
 
-  const loadChats = () => {
-    if (!user) return
-    const userChats = getChats(user.id)
+  const loadChats = (userId: string) => {
+    const userChats = getChats(userId)
     setChats(userChats)
   }
 
