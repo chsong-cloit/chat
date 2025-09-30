@@ -29,22 +29,22 @@ export default function ChatPage() {
       setEntryMode("github");
       setUserName(session.user.name || "사용자");
       loadMessages();
-      
+
       // 3초마다 메시지 새로고침 (실시간 효과)
       const interval = setInterval(loadMessages, 3000);
       return () => clearInterval(interval);
     }
-    
+
     // 이름으로 입장한 경우 확인
     if (status === "unauthenticated") {
       const savedName = localStorage.getItem("userName");
       const savedMode = localStorage.getItem("entryMode");
-      
+
       if (savedName && savedMode === "name") {
         setEntryMode("name");
         setUserName(savedName);
         loadMessages();
-        
+
         // 3초마다 메시지 새로고침 (실시간 효과)
         const interval = setInterval(loadMessages, 3000);
         return () => clearInterval(interval);
@@ -82,12 +82,18 @@ export default function ChatPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
-          text, 
+        body: JSON.stringify({
+          text,
           userName,
           entryMode,
-          senderId: entryMode === "github" ? (session?.user?.id || session?.user?.email) : userName,
-          senderAvatar: entryMode === "github" ? (session?.user?.avatar || session?.user?.image) : null
+          senderId:
+            entryMode === "github"
+              ? session?.user?.id || session?.user?.email
+              : userName,
+          senderAvatar:
+            entryMode === "github"
+              ? session?.user?.avatar || session?.user?.image
+              : null,
         }),
       });
 
@@ -97,9 +103,9 @@ export default function ChatPage() {
           ...data.message,
           isOwn: true,
         };
-        
-        setMessages(prev => [...prev, newMessage]);
-        
+
+        setMessages((prev) => [...prev, newMessage]);
+
         // 간단한 봇 응답 시뮬레이션
         setTimeout(async () => {
           const botResponse = await fetch("/api/messages", {
@@ -107,19 +113,19 @@ export default function ChatPage() {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               text: `안녕하세요! "${text.trim()}"라고 하셨군요.`,
-              isBot: true 
+              isBot: true,
             }),
           });
-          
+
           if (botResponse.ok) {
             const botData = await botResponse.json();
             const botMessage = {
               ...botData.message,
               isOwn: false,
             };
-            setMessages(prev => [...prev, botMessage]);
+            setMessages((prev) => [...prev, botMessage]);
           }
         }, 1000);
       }
@@ -216,13 +222,22 @@ export default function ChatPage() {
           </div>
         ) : (
           messages.map((message) => (
-            <div key={message.id} className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'} mb-4`}>
-              <div className={`flex items-end space-x-2 max-w-[80%] ${message.isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
+            <div
+              key={message.id}
+              className={`flex ${
+                message.isOwn ? "justify-end" : "justify-start"
+              } mb-4`}
+            >
+              <div
+                className={`flex items-end space-x-2 max-w-[80%] ${
+                  message.isOwn ? "flex-row-reverse space-x-reverse" : ""
+                }`}
+              >
                 {!message.isOwn && (
                   <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                     {message.senderAvatar ? (
-                      <img 
-                        src={message.senderAvatar} 
+                      <img
+                        src={message.senderAvatar}
                         alt={message.senderName}
                         className="w-8 h-8 rounded-full"
                       />
@@ -233,18 +248,24 @@ export default function ChatPage() {
                     )}
                   </div>
                 )}
-                <div className={`px-4 py-2 rounded-lg ${
-                  message.isOwn 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'bg-muted text-foreground'
-                }`}>
+                <div
+                  className={`px-4 py-2 rounded-lg ${
+                    message.isOwn
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
                   <p className="text-sm">{message.text}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                  }`}>
-                    {new Date(message.timestamp).toLocaleTimeString('ko-KR', {
-                      hour: '2-digit',
-                      minute: '2-digit'
+                  <p
+                    className={`text-xs mt-1 ${
+                      message.isOwn
+                        ? "text-primary-foreground/70"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {new Date(message.timestamp).toLocaleTimeString("ko-KR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </p>
                 </div>
