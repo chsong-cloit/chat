@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { MessageInput } from "@/components/message-input";
@@ -22,6 +22,24 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>("");
   const [entryMode, setEntryMode] = useState<"github" | "name">("github");
+
+  const loadMessages = useCallback(async () => {
+    try {
+      const response = await fetch("/api/messages");
+      if (response.ok) {
+        const data = await response.json();
+        const messagesWithOwnership = data.messages.map((msg: Message) => ({
+          ...msg,
+          isOwn: msg.senderName === userName,
+        }));
+        setMessages(messagesWithOwnership.reverse()); // 최신 메시지가 아래에 오도록
+      }
+    } catch (error) {
+      console.error("메시지 로드 오류:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userName]);
 
   useEffect(() => {
     // GitHub 로그인 확인
@@ -53,25 +71,7 @@ export default function ChatPage() {
         return;
       }
     }
-  }, [session, status, router]);
-
-  const loadMessages = async () => {
-    try {
-      const response = await fetch("/api/messages");
-      if (response.ok) {
-        const data = await response.json();
-        const messagesWithOwnership = data.messages.map((msg: Message) => ({
-          ...msg,
-          isOwn: msg.senderName === userName,
-        }));
-        setMessages(messagesWithOwnership.reverse()); // 최신 메시지가 아래에 오도록
-      }
-    } catch (error) {
-      console.error("메시지 로드 오류:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [session, status, router, loadMessages]);
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;

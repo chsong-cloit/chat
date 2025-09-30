@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // 메모리에 메시지 저장
     memoryMessages.unshift(message); // 최신 메시지를 앞에 추가
-    
+
     // 최대 100개 메시지만 유지
     if (memoryMessages.length > 100) {
       memoryMessages = memoryMessages.slice(0, 100);
