@@ -26,16 +26,21 @@ export default function ChatPage() {
 
   const loadMessages = useCallback(async () => {
     if (!userName) return; // userName이 없으면 실행하지 않음
-
+    
     try {
+      console.log("메시지 로드 시작...");
       const response = await fetch("/api/messages");
       if (response.ok) {
         const data = await response.json();
+        console.log("서버에서 받은 메시지:", data.messages.length, "개");
         const messagesWithOwnership = data.messages.map((msg: Message) => ({
           ...msg,
           isOwn: msg.senderName === userName,
         }));
         setMessages(messagesWithOwnership.reverse());
+        console.log("메시지 업데이트 완료");
+      } else {
+        console.error("메시지 로드 실패:", response.status);
       }
     } catch (error) {
       console.error("메시지 로드 오류:", error);
@@ -78,13 +83,14 @@ export default function ChatPage() {
     if (userName && isInitialized) {
       loadMessages();
 
-      // SSE 연결 설정 (폴링 대신 실시간 브로드캐스트)
+      // SSE 연결 시도
       const eventSource = new EventSource("/api/events");
       let sseConnected = false;
 
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log("SSE 메시지 수신:", data);
 
           if (data.type === "connected") {
             sseConnected = true;
@@ -92,6 +98,7 @@ export default function ChatPage() {
           } else if (data.type === "new_message") {
             // 자신이 보낸 메시지는 SSE에서 무시 (이미 로컬에 추가됨)
             if (data.message.senderName === userName) {
+              console.log("자신의 메시지 무시:", data.message.text);
               return;
             }
 
@@ -100,6 +107,7 @@ export default function ChatPage() {
               isOwn: false, // 다른 사람 메시지
             };
 
+            console.log("새 메시지 추가:", newMessage.text);
             setMessages((prev) => {
               // 중복 메시지 방지
               const exists = prev.some((msg) => msg.id === newMessage.id);
@@ -118,16 +126,15 @@ export default function ChatPage() {
         sseConnected = false;
       };
 
-      // SSE가 실패할 경우를 대비한 백업 폴링 (5초마다)
-      const fallbackInterval = setInterval(() => {
-        if (!sseConnected) {
-          loadMessages();
-        }
-      }, 5000);
+      // 안정적인 폴링 (2초마다) - SSE가 실패해도 작동
+      const pollingInterval = setInterval(() => {
+        console.log("폴링 실행 - SSE 연결 상태:", sseConnected);
+        loadMessages();
+      }, 2000);
 
       return () => {
         eventSource.close();
-        clearInterval(fallbackInterval);
+        clearInterval(pollingInterval);
       };
     }
   }, [userName, isInitialized, loadMessages]);
