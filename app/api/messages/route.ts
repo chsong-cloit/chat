@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { broadcastMessage } from "../events/route";
 
+// Vercel Edge Runtime 사용
+export const config = {
+  runtime: "edge",
+};
+
 // 메모리 기반 메시지 저장 (Redis 대신 사용)
 let memoryMessages: any[] = [];
 
