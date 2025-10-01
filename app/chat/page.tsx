@@ -288,27 +288,19 @@ export default function ChatPage() {
             </span>
           </div>
           <div>
-            <h1 className="font-semibold text-lg">카카오톡 클론</h1>
+            <h1 className="font-semibold text-lg">{userName}</h1>
             <p className="text-sm text-muted-foreground">온라인</p>
           </div>
         </div>
         <button
-          onClick={() => router.push("/")}
-          className="p-2 hover:bg-muted rounded-full"
+          onClick={() => {
+            localStorage.removeItem("userName");
+            localStorage.removeItem("entryMode");
+            router.push("/");
+          }}
+          className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
         >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          로그아웃
         </button>
       </div>
 
@@ -349,25 +341,33 @@ export default function ChatPage() {
               } mb-4`}
             >
               <div
-                className={`flex items-end space-x-2 max-w-[80%] ${
-                  message.isOwn ? "flex-row-reverse space-x-reverse" : ""
+                className={`flex flex-col max-w-[80%] ${
+                  message.isOwn ? "items-end" : "items-start"
                 }`}
               >
+                {/* 이름 표시 (다른 사람 메시지만) */}
                 {!message.isOwn && (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    {message.senderAvatar ? (
-                      <img
-                        src={message.senderAvatar}
-                        alt={message.senderName}
-                        className="w-8 h-8 rounded-full"
-                      />
-                    ) : (
-                      <span className="text-primary-foreground text-sm font-semibold">
-                        {message.senderName[0].toUpperCase()}
-                      </span>
-                    )}
+                  <div className="flex items-center space-x-2 mb-1 px-2">
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                      {message.senderAvatar ? (
+                        <img
+                          src={message.senderAvatar}
+                          alt={message.senderName}
+                          className="w-6 h-6 rounded-full"
+                        />
+                      ) : (
+                        <span className="text-primary-foreground text-xs font-semibold">
+                          {message.senderName[0].toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">
+                      {message.senderName}
+                    </span>
                   </div>
                 )}
+                
+                {/* 메시지 본문 */}
                 <div
                   className={`px-4 py-2 rounded-lg ${
                     message.isOwn
@@ -375,7 +375,9 @@ export default function ChatPage() {
                       : "bg-muted text-foreground"
                   }`}
                 >
-                  <p className="text-sm">{message.text}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {message.text}
+                  </p>
                   <p
                     className={`text-xs mt-1 ${
                       message.isOwn
