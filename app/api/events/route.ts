@@ -1,95 +1,74 @@
 import { NextRequest } from "next/server";
 
-// Node.js Runtime 사용 (메모리 공유를 위해)
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// 연결된 클라이언트들을 저장
-const clients = new Map<string, ReadableStreamDefaultController>();
+// 연결된 클라이언트 저장
+const clients = new Set<ReadableStreamDefaultController>();
 
-// 메시지 브로드캐스트 함수
+// 브로드캐스트 함수
 export function broadcastMessage(message: any) {
   const data = `data: ${JSON.stringify(message)}\n\n`;
+  const encoder = new TextEncoder();
 
-  clients.forEach((controller, clientId) => {
+  clients.forEach((controller) => {
     try {
-      controller.enqueue(new TextEncoder().encode(data));
+      controller.enqueue(encoder.encode(data));
     } catch (error) {
-      console.error(`SSE 브로드캐스트 오류 (${clientId}):`, error);
-      clients.delete(clientId);
+      clients.delete(controller);
     }
   });
 
-  console.log(`SSE 브로드캐스트 완료. 연결된 클라이언트: ${clients.size}개`);
+  console.log(`📡 브로드캐스트: ${clients.size}명에게 전송`);
 }
 
 export async function GET(request: NextRequest) {
-  const clientId = crypto.randomUUID();
+  const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     start(controller) {
-      // 클라이언트 연결 추가
-      clients.set(clientId, controller);
+      clients.add(controller);
+      console.log(`✅ SSE 연결: 총 ${clients.size}명`);
 
-      // 연결 확인 메시지
+      // 연결 확인
       controller.enqueue(
-        new TextEncoder().encode(
-          `data: ${JSON.stringify({ type: "connected", clientId })}\n\n`
-        )
+        encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`)
       );
 
-      console.log(
-        `SSE 클라이언트 연결됨: ${clientId}. 총 ${clients.size}개 연결`
-      );
-
-      // 하트비트 전송 (30초마다)
-      const heartbeatInterval = setInterval(() => {
+      // 하트비트 (15초마다)
+      const heartbeat = setInterval(() => {
         try {
           controller.enqueue(
-            new TextEncoder().encode(
-              `data: ${JSON.stringify({
-                type: "heartbeat",
-                timestamp: Date.now(),
-              })}\n\n`
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "heartbeat" })}\n\n`
             )
           );
-        } catch (error) {
-          console.error(`하트비트 전송 오류 (${clientId}):`, error);
-          clearInterval(heartbeatInterval);
-          clients.delete(clientId);
+        } catch {
+          clearInterval(heartbeat);
+          clients.delete(controller);
         }
-      }, 30000);
+      }, 15000);
 
-      // 클라이언트 연결 해제 시 하트비트 정리
-      const cleanup = () => {
-        clearInterval(heartbeatInterval);
-        clients.delete(clientId);
-        console.log(
-          `SSE 클라이언트 연결 해제됨: ${clientId}. 총 ${clients.size}개 연결`
-        );
+      // cleanup 저장
+      (controller as any).cleanup = () => {
+        clearInterval(heartbeat);
+        clients.delete(controller);
+        console.log(`❌ SSE 연결 해제: 총 ${clients.size}명`);
       };
-
-      // cleanup 함수를 controller에 저장
-      (controller as any).cleanup = cleanup;
     },
 
-    cancel() {
-      // 클라이언트 연결 제거
-      const controller = clients.get(clientId);
-      if (controller && (controller as any).cleanup) {
-        (controller as any).cleanup();
-      }
+    cancel(controller) {
+      const ctrl = controller as any;
+      if (ctrl.cleanup) ctrl.cleanup();
     },
   });
 
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Cache-Control",
-      "X-Accel-Buffering": "no", // Nginx 버퍼링 비활성화
+      "X-Accel-Buffering": "no",
     },
   });
 }

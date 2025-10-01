@@ -25,8 +25,6 @@ export default function ChatPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [sseConnected, setSseConnected] = useState(false);
-  const [lastMessageTime, setLastMessageTime] = useState(0);
   const messagesEndRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       node.scrollIntoView({ behavior: "smooth" });
@@ -106,38 +104,6 @@ export default function ChatPage() {
     }
   }, [session, status, router, isInitialized]);
 
-  // 메시지 새로고침 함수
-  const refreshMessages = useCallback(async () => {
-    try {
-      const response = await fetch("/api/messages");
-      if (response.ok) {
-        const data = await response.json();
-        const loadedMessages = data.messages.map((msg: any) => ({
-          ...msg,
-          isOwn: msg.senderName === userName,
-        }));
-        
-        setMessages((prev) => {
-          // 새로운 메시지만 추가 (중복 방지)
-          const existingIds = new Set(prev.map((m) => m.id));
-          const newMessages = loadedMessages.filter(
-            (msg: any) => !existingIds.has(msg.id)
-          );
-          
-          if (newMessages.length > 0) {
-            console.log("새 메시지 발견:", newMessages.length);
-            return [...prev, ...newMessages].sort(
-              (a, b) => a.timestamp - b.timestamp
-            );
-          }
-          return prev;
-        });
-      }
-    } catch (error) {
-      console.error("메시지 새로고침 오류:", error);
-    }
-  }, [userName]);
-
   // userName이 설정된 후 초기 메시지 불러오기 및 SSE 연결
   useEffect(() => {
     if (userName && isInitialized) {
@@ -152,128 +118,71 @@ export default function ChatPage() {
               isOwn: msg.senderName === userName,
             }));
             setMessages(loadedMessages);
-            if (loadedMessages.length > 0) {
-              setLastMessageTime(Date.now());
-            }
           }
         } catch (error) {
           console.error("초기 메시지 로딩 오류:", error);
         } finally {
-          setLoading(false); // 초기 로딩 완료
+          setLoading(false);
         }
       };
 
       loadInitialMessages();
 
-      let eventSource: EventSource | null = null;
-      let reconnectAttempts = 0;
-      const maxReconnectAttempts = 5;
-      let reconnectTimeout: NodeJS.Timeout | null = null;
+      // SSE 연결
+      const eventSource = new EventSource("/api/events");
 
-      const connectSSE = () => {
-        if (eventSource) {
-          eventSource.close();
-        }
-
-        eventSource = new EventSource("/api/events");
-
-        eventSource.onopen = () => {
-          console.log("SSE 연결 성공!");
-          setSseConnected(true);
-          reconnectAttempts = 0; // 연결 성공 시 재시도 횟수 리셋
-        };
-
-        eventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            console.log("SSE 메시지 수신:", data);
-
-            if (data.type === "connected") {
-              console.log("SSE 연결 확인됨!");
-            } else if (data.type === "new_message") {
-              console.log(
-                "새 메시지 수신:",
-                data.message.text,
-                "ID:",
-                data.message.id,
-                "발신자:",
-                data.message.senderName
-              );
-              
-              // 자신이 보낸 메시지는 SSE에서 무시 (낙관적 업데이트로 이미 표시됨)
-              if (data.message.senderName === userName) {
-                console.log("자신의 메시지 무시:", data.message.text);
-                return;
-              }
-
-              const newMessage = {
-                ...data.message,
-                isOwn: false, // 다른 사람 메시지
-              };
-              
-              setMessages((prev) => {
-                // 중복 메시지 방지 (메시지 ID로만 체크)
-                const exists = prev.some((msg) => msg.id === newMessage.id);
-                if (exists) {
-                  console.log("중복 메시지 무시 (이미 존재):", newMessage.text);
-                  return prev;
-                }
-
-                return [...prev, newMessage];
-              });
-            }
-          } catch (error) {
-            console.error("SSE 메시지 파싱 오류:", error);
-          }
-        };
-
-        eventSource.onerror = (error) => {
-          console.error("SSE 연결 오류:", error);
-          setSseConnected(false);
-
-          if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++;
-            const delay = Math.min(
-              1000 * Math.pow(2, reconnectAttempts),
-              10000
-            ); // 지수 백오프, 최대 10초
-
-            console.log(
-              `SSE 재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts} (${delay}ms 후)`
-            );
-
-            reconnectTimeout = setTimeout(() => {
-              connectSSE();
-            }, delay);
-          } else {
-            console.error("SSE 재연결 실패: fallback 폴링 활성화");
-            setSseConnected(false);
-          }
-        };
+      eventSource.onopen = () => {
+        console.log("✅ SSE 연결 성공!");
       };
 
-      // 초기 연결
-      connectSSE();
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
 
-      // Fallback 폴링 (SSE 연결 실패 시에만 작동)
-      const fallbackPolling = setInterval(() => {
-        if (!sseConnected) {
-          console.log("SSE 연결 없음 → fallback 폴링");
-          refreshMessages();
+          if (data.type === "heartbeat") {
+            console.log("💓 하트비트");
+            return;
+          }
+
+          if (data.type === "new_message") {
+            console.log("📩 새 메시지:", data.message.text);
+
+            // 자신이 보낸 메시지는 무시 (낙관적 업데이트로 이미 표시됨)
+            if (data.message.senderName === userName) {
+              console.log("⏭️  자신의 메시지 무시");
+              return;
+            }
+
+            const newMessage = {
+              ...data.message,
+              isOwn: false,
+            };
+
+            setMessages((prev) => {
+              // 중복 체크
+              if (prev.some((msg) => msg.id === newMessage.id)) {
+                console.log("⚠️  중복 메시지");
+                return prev;
+              }
+              return [...prev, newMessage];
+            });
+          }
+        } catch (error) {
+          console.error("❌ SSE 파싱 오류:", error);
         }
-      }, 3000); // 3초마다 체크
+      };
+
+      eventSource.onerror = (error) => {
+        console.error("❌ SSE 오류:", error);
+        eventSource.close();
+      };
 
       return () => {
-        if (reconnectTimeout) {
-          clearTimeout(reconnectTimeout);
-        }
-        if (eventSource) {
-          eventSource.close();
-        }
-        clearInterval(fallbackPolling);
+        console.log("🔌 SSE 연결 종료");
+        eventSource.close();
       };
     }
-  }, [userName, isInitialized, sseConnected, refreshMessages]);
+  }, [userName, isInitialized]);
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
@@ -329,11 +238,6 @@ export default function ChatPage() {
         );
 
         console.log("메시지 전송 완료. 서버 ID:", data.message.id);
-        
-        // SSE가 불안정할 경우를 대비해 1초 후 메시지 새로고침
-        setTimeout(() => {
-          refreshMessages();
-        }, 1000);
       } else {
         // 전송 실패 시 임시 메시지 제거
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));

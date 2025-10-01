@@ -14,7 +14,7 @@ async function getRedis() {
 export async function GET() {
   try {
     const redis = await getRedis();
-    
+
     // Redis에서 메시지 가져오기 (최근 100개)
     const messageKeys = await redis.lRange("chat:messages", 0, 99);
     const messages = await Promise.all(
@@ -23,12 +23,12 @@ export async function GET() {
         return msg ? JSON.parse(msg) : null;
       })
     );
-    
+
     // null 제거 및 시간순 정렬
     const validMessages = messages
       .filter((msg) => msg !== null)
       .sort((a, b) => a.timestamp - b.timestamp);
-    
+
     return NextResponse.json({ messages: validMessages });
   } catch (error) {
     console.error("메시지 조회 오류:", error);
@@ -59,15 +59,15 @@ export async function POST(request: NextRequest) {
 
     try {
       const redis = await getRedis();
-      
+
       // Redis에 메시지 저장
       const messageKey = `message:${message.id}`;
       await redis.set(messageKey, JSON.stringify(message));
-      
+
       // 메시지 목록에 추가 (최근 100개만 유지)
       await redis.lPush("chat:messages", messageKey);
       await redis.lTrim("chat:messages", 0, 99);
-      
+
       console.log("Redis에 메시지 저장:", message.id);
     } catch (redisError) {
       console.error("Redis 저장 오류 (계속 진행):", redisError);
