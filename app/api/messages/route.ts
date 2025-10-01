@@ -22,8 +22,20 @@ async function getRedis() {
 // 푸시 알림 전송 함수
 async function sendPushNotifications(message: any) {
   try {
+    console.log("📨 푸시 알림 전송 시작:", {
+      sender: message.senderName,
+      text: message.text.substring(0, 20),
+    });
+
     const redis = await getRedis();
     const keys = await redis.keys("push:subscription:*");
+
+    console.log(`📋 Redis 구독자: ${keys.length}명`);
+
+    if (keys.length === 0) {
+      console.log("⚠️  구독자가 없습니다. 푸시 알림 건너뜀");
+      return;
+    }
 
     const payload = JSON.stringify({
       title: `${message.senderName}님의 새 메시지`,
@@ -35,23 +47,38 @@ async function sendPushNotifications(message: any) {
       },
     });
 
+    console.log("📦 푸시 payload:", payload);
+
+    let successCount = 0;
+    let failCount = 0;
+
     await Promise.all(
       keys.map(async (key) => {
         try {
           const subData = await redis.get(key);
           if (subData) {
             const subscription = JSON.parse(subData);
+            console.log(`📤 푸시 전송 시도: ${key}`);
             await webpush.sendNotification(subscription, payload);
+            successCount++;
+            console.log(`✅ 푸시 전송 성공: ${key}`);
           }
-        } catch (error) {
-          console.error("푸시 전송 실패:", error);
+        } catch (error: any) {
+          failCount++;
+          console.error(`❌ 푸시 전송 실패 (${key}):`, error.message);
+
           // 구독이 만료되었으면 삭제
-          await redis.del(key);
+          if (error.statusCode === 410 || error.statusCode === 404) {
+            console.log(`🗑️  만료된 구독 삭제: ${key}`);
+            await redis.del(key);
+          }
         }
       })
     );
+
+    console.log(`📊 푸시 전송 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
   } catch (error) {
-    console.error("푸시 알림 전송 오류:", error);
+    console.error("❌ 푸시 알림 전송 오류:", error);
   }
 }
 
