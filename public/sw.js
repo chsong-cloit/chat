@@ -1,12 +1,29 @@
 // Service Worker
 self.addEventListener("install", (event) => {
   console.log("Service Worker 설치됨");
-  self.skipWaiting();
+  // 자동으로 skipWaiting 호출하지 않음 (사용자 선택 대기)
 });
 
 self.addEventListener("activate", (event) => {
   console.log("Service Worker 활성화됨");
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    clients.claim().then(() => {
+      // 모든 클라이언트에 업데이트 알림
+      return clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: "SW_UPDATED" });
+        });
+      });
+    })
+  );
+});
+
+// 업데이트 메시지 수신
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    console.log("업데이트 적용 중...");
+    self.skipWaiting();
+  }
 });
 
 // 푸시 알림 수신
