@@ -1,3 +1,5 @@
+import withPWA from "next-pwa";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -17,7 +19,15 @@ const nextConfig = {
     NEXTAUTH_URL: "https://v0-kakao-talk-clone.vercel.app/",
     REDIS_URL:
       "redis://default:OGt0RrnSnJbRKMZbOwTCk4BfGTwNyur0@redis-15838.c340.ap-northeast-2-1.ec2.redns.redis-cloud.com:15838",
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY:
+      "BKm3QqmQANSCNFTMzmbc3YK2SK3EBtJ8JIPafVeKo1V1DM7C7WTbNXMScS3G9w8Zct88_09keCiHxBwmMaWO0NE",
+    VAPID_PRIVATE_KEY: "kCvi6TEwuuI8MVEttZ8mrf_yiLDr1chYe0TsgRVl4HA",
   },
 };
 
-export default nextConfig;
+export default withPWA({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === "development",
+})(nextConfig);

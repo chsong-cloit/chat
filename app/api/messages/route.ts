@@ -1,14 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { broadcastMessage } from "../events/route";
+import webpush from "web-push";
 
 // Node.js Runtime 사용
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// VAPID 설정
+webpush.setVapidDetails(
+  "mailto:your-email@example.com",
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
+  process.env.VAPID_PRIVATE_KEY || ""
+);
+
 // Redis 동적 임포트 함수
 async function getRedis() {
   const { getRedisClient } = await import("@/lib/redis");
   return getRedisClient();
+}
+
+// 푸시 알림 전송 함수
+async function sendPushNotifications(message: any) {
+  try {
+    const redis = await getRedis();
+    const keys = await redis.keys("push:subscription:*");
+
+    const payload = JSON.stringify({
+      title: `${message.senderName}님의 새 메시지`,
+      body: message.text,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: {
+        url: "/chat",
+      },
+    });
+
+    await Promise.all(
+      keys.map(async (key) => {
+        try {
+          const subData = await redis.get(key);
+          if (subData) {
+            const subscription = JSON.parse(subData);
+            await webpush.sendNotification(subscription, payload);
+          }
+        } catch (error) {
+          console.error("푸시 전송 실패:", error);
+          // 구독이 만료되었으면 삭제
+          await redis.del(key);
+        }
+      })
+    );
+  } catch (error) {
+    console.error("푸시 알림 전송 오류:", error);
+  }
 }
 
 export async function GET() {
@@ -78,6 +122,11 @@ export async function POST(request: NextRequest) {
       type: "new_message",
       message: message,
     });
+
+    // 푸시 알림 전송 (백그라운드)
+    sendPushNotifications(message).catch((error) =>
+      console.error("푸시 알림 오류:", error)
+    );
 
     return NextResponse.json({ message });
   } catch (error) {

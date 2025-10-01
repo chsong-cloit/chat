@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { MessageInput } from "@/components/message-input";
+import { PushNotification } from "@/components/push-notification";
 
 interface Message {
   id: string;
@@ -293,6 +294,9 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* 푸시 알림 권한 요청 */}
+      <PushNotification />
+      
       {/* 헤더 */}
       <div className="flex items-center justify-between p-4 border-b bg-background">
         <div className="flex items-center space-x-3">

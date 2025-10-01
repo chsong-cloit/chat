@@ -7,8 +7,24 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "카카오톡 클론",
-  description: "Google 로그인을 지원하는 카카오톡 클론 앱",
+  description: "실시간 채팅 애플리케이션",
   generator: "v0.app",
+  manifest: "/manifest.json",
+  themeColor: "#FAE100",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "카톡",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon-192.png",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 };
 
 export default function RootLayout({
