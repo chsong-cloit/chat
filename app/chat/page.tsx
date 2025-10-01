@@ -104,22 +104,19 @@ export default function ChatPage() {
             if (data.type === "connected") {
               console.log("SSE 연결 확인됨!");
             } else if (data.type === "new_message") {
-              // 자신이 보낸 메시지는 SSE에서 무시 (이미 로컬에 추가됨)
-              if (data.message.senderName === userName) {
-                console.log("자신의 메시지 무시:", data.message.text);
-                return;
-              }
-
               const newMessage = {
                 ...data.message,
-                isOwn: false, // 다른 사람 메시지
+                isOwn: data.message.senderName === userName, // 자신의 메시지인지 확인
               };
 
-              console.log("새 메시지 추가:", newMessage.text);
+              console.log("새 메시지 추가:", newMessage.text, "isOwn:", newMessage.isOwn);
               setMessages((prev) => {
-                // 중복 메시지 방지
+                // 중복 메시지 방지 (메시지 ID로만 체크)
                 const exists = prev.some((msg) => msg.id === newMessage.id);
-                if (exists) return prev;
+                if (exists) {
+                  console.log("중복 메시지 무시:", newMessage.text);
+                  return prev;
+                }
 
                 return [...prev, newMessage];
               });
@@ -212,15 +209,17 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // 서버에서 받은 실제 메시지로 교체 (isOwn은 true로 유지)
+        // 임시 메시지를 서버 메시지로 교체
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempMessage.id
-              ? { ...data.message, isOwn: true, senderName: userName }
+              ? { ...data.message, isOwn: true }
               : msg
           )
         );
-        // loadMessages 호출 제거 - SSE로 다른 사용자 메시지 수신
+        
+        // SSE에서 중복 수신되는 것을 방지하기 위해 이미 추가된 메시지 ID 저장
+        // (SSE의 중복 체크가 이를 처리함)
       } else {
         // 전송 실패 시 임시 메시지 제거
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
