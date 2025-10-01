@@ -211,6 +211,15 @@ export default function ChatPage() {
 
     setMessages((prev) => [...prev, tempMessage]);
 
+    // 내가 메시지를 보내면 무조건 맨 아래로 스크롤
+    setTimeout(() => {
+      const messagesContainer = document.getElementById("messages-container");
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        setUnreadCount(0);
+      }
+    }, 100);
+
     try {
       const response = await fetch("/api/messages", {
         method: "POST",
