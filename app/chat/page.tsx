@@ -124,6 +124,14 @@ export default function ChatPage() {
               isOwn: msg.senderName === userName,
             }));
             setMessages(loadedMessages);
+
+            // 초기 로딩 후 맨 아래로 스크롤
+            setTimeout(() => {
+              const messagesContainer = document.getElementById("messages-container");
+              if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+              }
+            }, 100);
           }
         } catch (error) {
           console.error("초기 메시지 로딩 오류:", error);
@@ -296,7 +304,7 @@ export default function ChatPage() {
     <div className="flex flex-col h-screen bg-background">
       {/* 푸시 알림 권한 요청 */}
       <PushNotification />
-      
+
       {/* 헤더 */}
       <div className="flex items-center justify-between p-4 border-b bg-background">
         <div className="flex items-center space-x-3">
