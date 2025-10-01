@@ -25,6 +25,8 @@ export default function ChatPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [sseConnected, setSseConnected] = useState(false);
+  const [lastMessageTime, setLastMessageTime] = useState(0);
   const messagesEndRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       node.scrollIntoView({ behavior: "smooth" });
@@ -104,6 +106,38 @@ export default function ChatPage() {
     }
   }, [session, status, router, isInitialized]);
 
+  // 메시지 새로고침 함수
+  const refreshMessages = useCallback(async () => {
+    try {
+      const response = await fetch("/api/messages");
+      if (response.ok) {
+        const data = await response.json();
+        const loadedMessages = data.messages.map((msg: any) => ({
+          ...msg,
+          isOwn: msg.senderName === userName,
+        }));
+        
+        setMessages((prev) => {
+          // 새로운 메시지만 추가 (중복 방지)
+          const existingIds = new Set(prev.map((m) => m.id));
+          const newMessages = loadedMessages.filter(
+            (msg: any) => !existingIds.has(msg.id)
+          );
+          
+          if (newMessages.length > 0) {
+            console.log("새 메시지 발견:", newMessages.length);
+            return [...prev, ...newMessages].sort(
+              (a, b) => a.timestamp - b.timestamp
+            );
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error("메시지 새로고침 오류:", error);
+    }
+  }, [userName]);
+
   // userName이 설정된 후 초기 메시지 불러오기 및 SSE 연결
   useEffect(() => {
     if (userName && isInitialized) {
@@ -118,6 +152,9 @@ export default function ChatPage() {
               isOwn: msg.senderName === userName,
             }));
             setMessages(loadedMessages);
+            if (loadedMessages.length > 0) {
+              setLastMessageTime(Date.now());
+            }
           }
         } catch (error) {
           console.error("초기 메시지 로딩 오류:", error);
@@ -142,6 +179,7 @@ export default function ChatPage() {
 
         eventSource.onopen = () => {
           console.log("SSE 연결 성공!");
+          setSseConnected(true);
           reconnectAttempts = 0; // 연결 성공 시 재시도 횟수 리셋
         };
 
@@ -191,6 +229,7 @@ export default function ChatPage() {
 
         eventSource.onerror = (error) => {
           console.error("SSE 연결 오류:", error);
+          setSseConnected(false);
 
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts++;
@@ -207,14 +246,22 @@ export default function ChatPage() {
               connectSSE();
             }, delay);
           } else {
-            console.error("SSE 재연결 실패: 최대 재시도 횟수 초과");
-            // 사용자에게 알림을 표시할 수 있음
+            console.error("SSE 재연결 실패: fallback 폴링 활성화");
+            setSseConnected(false);
           }
         };
       };
 
       // 초기 연결
       connectSSE();
+
+      // Fallback 폴링 (SSE 연결 실패 시에만 작동)
+      const fallbackPolling = setInterval(() => {
+        if (!sseConnected) {
+          console.log("SSE 연결 없음 → fallback 폴링");
+          refreshMessages();
+        }
+      }, 3000); // 3초마다 체크
 
       return () => {
         if (reconnectTimeout) {
@@ -223,9 +270,10 @@ export default function ChatPage() {
         if (eventSource) {
           eventSource.close();
         }
+        clearInterval(fallbackPolling);
       };
     }
-  }, [userName, isInitialized]); // loadMessages 의존성 제거
+  }, [userName, isInitialized, sseConnected, refreshMessages]);
 
   const handleSendMessage = async (text: string) => {
     if (!userName || !text.trim()) return;
@@ -272,15 +320,20 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // 임시 메시지를 서버 메시지로 교체
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempMessage.id ? { ...data.message, isOwn: true } : msg
           )
         );
-        
+
         console.log("메시지 전송 완료. 서버 ID:", data.message.id);
+        
+        // SSE가 불안정할 경우를 대비해 1초 후 메시지 새로고침
+        setTimeout(() => {
+          refreshMessages();
+        }, 1000);
       } else {
         // 전송 실패 시 임시 메시지 제거
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
