@@ -302,7 +302,10 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background" style={{ 
+      height: '100dvh', // 동적 뷰포트 높이 (안드로이드 하단 메뉴바 고려)
+      paddingBottom: 'env(safe-area-inset-bottom)' // 안전 영역 확보
+    }}>
       {/* 푸시 알림 권한 요청 */}
       <PushNotification />
 

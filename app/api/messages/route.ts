@@ -76,7 +76,9 @@ async function sendPushNotifications(message: any) {
       })
     );
 
-    console.log(`📊 푸시 전송 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
+    console.log(
+      `📊 푸시 전송 완료: 성공 ${successCount}개, 실패 ${failCount}개`
+    );
   } catch (error) {
     console.error("❌ 푸시 알림 전송 오류:", error);
   }

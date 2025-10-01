@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     width: "device-width",
     initialScale: 1,
     maximumScale: 1,
+    viewportFit: "cover", // 안드로이드 노치 및 하단 메뉴바 대응
   },
 };
 
