@@ -113,6 +113,10 @@ export default function ChatPage() {
   // userName이 설정된 후 초기 메시지 불러오기 및 SSE 연결
   useEffect(() => {
     if (userName && isInitialized) {
+      let eventSource: EventSource | null = null;
+      let reconnectTimeout: NodeJS.Timeout | null = null;
+      let isConnected = false;
+
       // 초기 메시지 불러오기
       const loadInitialMessages = async () => {
         try {
@@ -141,60 +145,103 @@ export default function ChatPage() {
         }
       };
 
-      loadInitialMessages();
+      // SSE 연결 함수
+      const connectSSE = () => {
+        if (eventSource?.readyState === EventSource.OPEN) {
+          console.log("⚠️  이미 SSE 연결됨");
+          return;
+        }
 
-      // SSE 연결
-      const eventSource = new EventSource("/api/events");
+        console.log("🔄 SSE 연결 시도...");
+        eventSource = new EventSource("/api/events");
 
-      eventSource.onopen = () => {
-        console.log("✅ SSE 연결 성공!");
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === "heartbeat") {
-            console.log("💓 하트비트");
-            return;
+        eventSource.onopen = () => {
+          console.log("✅ SSE 연결 성공!");
+          isConnected = true;
+          if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
           }
+        };
 
-          if (data.type === "new_message") {
-            console.log("📩 새 메시지:", data.message.text);
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
 
-            // 자신이 보낸 메시지는 무시 (낙관적 업데이트로 이미 표시됨)
-            if (data.message.senderName === userName) {
-              console.log("⏭️  자신의 메시지 무시");
+            if (data.type === "heartbeat") {
+              console.log("💓 하트비트");
               return;
             }
 
-            const newMessage = {
-              ...data.message,
-              isOwn: false,
-            };
+            if (data.type === "new_message") {
+              console.log("📩 새 메시지:", data.message.text);
 
-            setMessages((prev) => {
-              // 중복 체크
-              if (prev.some((msg) => msg.id === newMessage.id)) {
-                console.log("⚠️  중복 메시지");
-                return prev;
+              // 자신이 보낸 메시지는 무시 (낙관적 업데이트로 이미 표시됨)
+              if (data.message.senderName === userName) {
+                console.log("⏭️  자신의 메시지 무시");
+                return;
               }
-              return [...prev, newMessage];
-            });
+
+              const newMessage = {
+                ...data.message,
+                isOwn: false,
+              };
+
+              setMessages((prev) => {
+                // 중복 체크
+                if (prev.some((msg) => msg.id === newMessage.id)) {
+                  console.log("⚠️  중복 메시지");
+                  return prev;
+                }
+                return [...prev, newMessage];
+              });
+            }
+          } catch (error) {
+            console.error("❌ SSE 파싱 오류:", error);
           }
-        } catch (error) {
-          console.error("❌ SSE 파싱 오류:", error);
-        }
+        };
+
+        eventSource.onerror = (error) => {
+          console.error("❌ SSE 연결 끊김:", error);
+          isConnected = false;
+          
+          if (eventSource) {
+            eventSource.close();
+          }
+
+          // 3초 후 재연결 시도
+          console.log("🔄 3초 후 재연결 시도...");
+          reconnectTimeout = setTimeout(() => {
+            connectSSE();
+          }, 3000);
+        };
       };
 
-      eventSource.onerror = (error) => {
-        console.error("❌ SSE 오류:", error);
-        eventSource.close();
-      };
+      // 초기 로드 및 연결
+      loadInitialMessages();
+      connectSSE();
+
+      // 주기적으로 연결 상태 확인 (30초마다)
+      const healthCheck = setInterval(() => {
+        if (!isConnected || eventSource?.readyState !== EventSource.OPEN) {
+          console.log("⚠️  연결 끊김 감지, 재연결 시도...");
+          if (eventSource) {
+            eventSource.close();
+          }
+          connectSSE();
+        }
+      }, 30000);
 
       return () => {
-        console.log("🔌 SSE 연결 종료");
-        eventSource.close();
+        console.log("🔌 SSE 연결 정리");
+        isConnected = false;
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+        }
+        clearInterval(healthCheck);
+        if (eventSource) {
+          eventSource.close();
+        }
       };
     }
   }, [userName, isInitialized]);

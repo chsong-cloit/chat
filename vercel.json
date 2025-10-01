@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "app/api/events/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}
+

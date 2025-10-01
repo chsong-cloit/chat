@@ -32,24 +32,38 @@ export async function GET(request: NextRequest) {
 
       // 연결 확인
       controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`)
+        encoder.encode(`data: ${JSON.stringify({ type: "connected", timestamp: Date.now() })}\n\n`)
       );
 
-      // 하트비트 (15초마다)
+      // 하트비트 (10초마다) - 연결 유지를 위해 더 짧게
       const heartbeat = setInterval(() => {
         try {
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: "heartbeat" })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ type: "heartbeat", timestamp: Date.now() })}\n\n`)
           );
-        } catch {
+          console.log(`💓 하트비트 전송: ${clients.size}명 연결됨`);
+        } catch (error) {
+          console.error("❌ 하트비트 전송 실패:", error);
           clearInterval(heartbeat);
           clients.delete(controller);
         }
-      }, 15000);
+      }, 10000); // 10초마다
+
+      // 연결 타임아웃 방지 - 주기적으로 빈 주석 전송 (5초마다)
+      const keepAlive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(": keep-alive\n\n"));
+        } catch (error) {
+          clearInterval(keepAlive);
+          clearInterval(heartbeat);
+          clients.delete(controller);
+        }
+      }, 5000);
 
       // cleanup 저장
       (controller as any).cleanup = () => {
         clearInterval(heartbeat);
+        clearInterval(keepAlive);
         clients.delete(controller);
         console.log(`❌ SSE 연결 해제: 총 ${clients.size}명`);
       };
@@ -67,6 +81,8 @@ export async function GET(request: NextRequest) {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      // Vercel 타임아웃 방지 (최대 60초)
+      "X-Vercel-Edge-Region": "auto",
     },
   });
 }
