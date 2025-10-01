@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { broadcastMessage } from "../events/route";
 
-// Next.js 14 호환 Edge Runtime 설정
-export const runtime = "edge";
+// Node.js Runtime 사용 (메모리 공유를 위해)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 // 메모리 기반 메시지 저장 (Redis 대신 사용)
 let memoryMessages: any[] = [];
 
 export async function GET() {
   try {
-    // Redis가 없어도 작동하도록 메모리에서 메시지 반환
-    return NextResponse.json({ messages: memoryMessages });
+    // 메시지를 오래된 것부터 최신 순으로 반환
+    const sortedMessages = [...memoryMessages].reverse();
+    return NextResponse.json({ messages: sortedMessages });
   } catch (error) {
     console.error("메시지 조회 오류:", error);
     return NextResponse.json(

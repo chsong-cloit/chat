@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 
-// Next.js 14 호환 Edge Runtime 설정
-export const runtime = "edge";
+// Node.js Runtime 사용 (메모리 공유를 위해)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 // 연결된 클라이언트들을 저장
 const clients = new Map<string, ReadableStreamDefaultController>();
