@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { broadcastMessage } from "../events/route";
 import webpush from "web-push";
 
 // Node.js Runtime 사용
@@ -141,16 +140,10 @@ export async function POST(request: NextRequest) {
       await redis.lPush("chat:messages", messageKey);
       await redis.lTrim("chat:messages", 0, 99);
 
-      console.log("Redis에 메시지 저장:", message.id);
+      console.log("✅ Redis에 메시지 저장:", message.id);
     } catch (redisError) {
-      console.error("Redis 저장 오류 (계속 진행):", redisError);
+      console.error("❌ Redis 저장 오류 (계속 진행):", redisError);
     }
-
-    // 모든 연결된 클라이언트에게 실시간 브로드캐스트
-    broadcastMessage({
-      type: "new_message",
-      message: message,
-    });
 
     // 푸시 알림 전송 (백그라운드)
     sendPushNotifications(message).catch((error) =>

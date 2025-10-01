@@ -110,15 +110,13 @@ export default function ChatPage() {
     }
   }, [session, status, router, isInitialized]);
 
-  // userName이 설정된 후 초기 메시지 불러오기 및 SSE 연결
+  // userName이 설정된 후 초기 메시지 불러오기 및 폴링
   useEffect(() => {
     if (userName && isInitialized) {
-      let eventSource: EventSource | null = null;
-      let reconnectTimeout: NodeJS.Timeout | null = null;
-      let isConnected = false;
+      let lastMessageId = "";
 
-      // 초기 메시지 불러오기
-      const loadInitialMessages = async () => {
+      // 메시지 불러오기
+      const loadMessages = async () => {
         try {
           const response = await fetch("/api/messages");
           if (response.ok) {
@@ -127,121 +125,55 @@ export default function ChatPage() {
               ...msg,
               isOwn: msg.senderName === userName,
             }));
-            setMessages(loadedMessages);
 
-            // 초기 로딩 후 맨 아래로 스크롤
-            setTimeout(() => {
-              const messagesContainer =
-                document.getElementById("messages-container");
-              if (messagesContainer) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            setMessages((prev) => {
+              // 새 메시지만 추가
+              const newMessages = loadedMessages.filter(
+                (newMsg: Message) => !prev.some((oldMsg) => oldMsg.id === newMsg.id)
+              );
+
+              if (newMessages.length > 0) {
+                console.log(`📩 새 메시지 ${newMessages.length}개 수신`);
+                return [...prev, ...newMessages];
               }
-            }, 100);
+
+              return prev;
+            });
+
+            // 마지막 메시지 ID 업데이트
+            if (loadedMessages.length > 0) {
+              lastMessageId = loadedMessages[loadedMessages.length - 1].id;
+            }
           }
         } catch (error) {
-          console.error("초기 메시지 로딩 오류:", error);
-        } finally {
-          setLoading(false);
+          console.error("메시지 로딩 오류:", error);
         }
       };
 
-      // SSE 연결 함수
-      const connectSSE = () => {
-        if (eventSource?.readyState === EventSource.OPEN) {
-          console.log("⚠️  이미 SSE 연결됨");
-          return;
-        }
+      // 초기 로드
+      const initialize = async () => {
+        await loadMessages();
+        setLoading(false);
 
-        console.log("🔄 SSE 연결 시도...");
-        eventSource = new EventSource("/api/events");
-
-        eventSource.onopen = () => {
-          console.log("✅ SSE 연결 성공!");
-          isConnected = true;
-          if (reconnectTimeout) {
-            clearTimeout(reconnectTimeout);
-            reconnectTimeout = null;
+        // 초기 로딩 후 맨 아래로 스크롤
+        setTimeout(() => {
+          const messagesContainer =
+            document.getElementById("messages-container");
+          if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
-        };
-
-        eventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-
-            if (data.type === "heartbeat") {
-              console.log("💓 하트비트");
-              return;
-            }
-
-            if (data.type === "new_message") {
-              console.log("📩 새 메시지:", data.message.text);
-
-              // 자신이 보낸 메시지는 무시 (낙관적 업데이트로 이미 표시됨)
-              if (data.message.senderName === userName) {
-                console.log("⏭️  자신의 메시지 무시");
-                return;
-              }
-
-              const newMessage = {
-                ...data.message,
-                isOwn: false,
-              };
-
-              setMessages((prev) => {
-                // 중복 체크
-                if (prev.some((msg) => msg.id === newMessage.id)) {
-                  console.log("⚠️  중복 메시지");
-                  return prev;
-                }
-                return [...prev, newMessage];
-              });
-            }
-          } catch (error) {
-            console.error("❌ SSE 파싱 오류:", error);
-          }
-        };
-
-        eventSource.onerror = (error) => {
-          console.error("❌ SSE 연결 끊김:", error);
-          isConnected = false;
-          
-          if (eventSource) {
-            eventSource.close();
-          }
-
-          // 3초 후 재연결 시도
-          console.log("🔄 3초 후 재연결 시도...");
-          reconnectTimeout = setTimeout(() => {
-            connectSSE();
-          }, 3000);
-        };
+        }, 100);
       };
 
-      // 초기 로드 및 연결
-      loadInitialMessages();
-      connectSSE();
+      initialize();
 
-      // 주기적으로 연결 상태 확인 (30초마다)
-      const healthCheck = setInterval(() => {
-        if (!isConnected || eventSource?.readyState !== EventSource.OPEN) {
-          console.log("⚠️  연결 끊김 감지, 재연결 시도...");
-          if (eventSource) {
-            eventSource.close();
-          }
-          connectSSE();
-        }
-      }, 30000);
+      // 2초마다 폴링
+      const pollingInterval = setInterval(() => {
+        loadMessages();
+      }, 2000);
 
       return () => {
-        console.log("🔌 SSE 연결 정리");
-        isConnected = false;
-        if (reconnectTimeout) {
-          clearTimeout(reconnectTimeout);
-        }
-        clearInterval(healthCheck);
-        if (eventSource) {
-          eventSource.close();
-        }
+        clearInterval(pollingInterval);
       };
     }
   }, [userName, isInitialized]);
@@ -304,15 +236,17 @@ export default function ChatPage() {
         // 임시 메시지를 서버 메시지로 교체
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === tempMessage.id ? { ...data.message, isOwn: true } : msg
+            msg.id === tempMessage.id
+              ? { ...data.message, isOwn: true, senderName: userName }
+              : msg
           )
         );
 
-        console.log("메시지 전송 완료. 서버 ID:", data.message.id);
+        console.log("✅ 메시지 전송 완료:", data.message.id);
       } else {
         // 전송 실패 시 임시 메시지 제거
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
-        console.error("메시지 전송 실패");
+        console.error("❌ 메시지 전송 실패");
       }
     } catch (error) {
       console.error("메시지 전송 오류:", error);
@@ -349,10 +283,13 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background" style={{ 
-      height: '100dvh', // 동적 뷰포트 높이 (안드로이드 하단 메뉴바 고려)
-      paddingBottom: 'env(safe-area-inset-bottom)' // 안전 영역 확보
-    }}>
+    <div
+      className="flex flex-col h-screen bg-background"
+      style={{
+        height: "100dvh", // 동적 뷰포트 높이 (안드로이드 하단 메뉴바 고려)
+        paddingBottom: "env(safe-area-inset-bottom)", // 안전 영역 확보
+      }}
+    >
       {/* 푸시 알림 권한 요청 */}
       <PushNotification />
 
