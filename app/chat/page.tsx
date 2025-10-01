@@ -53,24 +53,29 @@ export default function ChatPage() {
 
   // 메시지 변경 시 자동 스크롤 처리
   useEffect(() => {
-    const messagesContainer = document.getElementById("messages-container");
-    if (messagesContainer && messages.length > 0) {
-      const isAtBottom =
-        messagesContainer.scrollHeight -
-          messagesContainer.scrollTop -
-          messagesContainer.clientHeight <
-        100;
+    if (messages.length === 0) return;
 
-      if (isAtBottom) {
-        // 맨 아래에 있으면 자동 스크롤
-        setTimeout(() => {
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, 100);
+    const messagesContainer = document.getElementById("messages-container");
+    if (!messagesContainer) return;
+
+    // 현재 스크롤 위치 확인 (메시지 추가 전)
+    const wasAtBottom =
+      messagesContainer.scrollHeight -
+        messagesContainer.scrollTop -
+        messagesContainer.clientHeight <
+      150;
+
+    // DOM 업데이트 후 스크롤
+    requestAnimationFrame(() => {
+      if (wasAtBottom) {
+        // 맨 아래에 있었으면 자동 스크롤
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        setUnreadCount(0);
       } else {
-        // 맨 아래가 아니면 읽지 않은 메시지 카운트 증가
+        // 위에 있으면 읽지 않은 메시지 카운트 증가
         setUnreadCount((prev) => prev + 1);
       }
-    }
+    });
   }, [messages]);
 
   // loadMessages 함수 완전 제거 - SSE만 사용
@@ -293,9 +298,16 @@ export default function ChatPage() {
           </div>
         </div>
         <button
-          onClick={() => {
+          onClick={async () => {
+            // GitHub 로그인인 경우 signOut 호출
+            if (entryMode === "github") {
+              const { signOut } = await import("next-auth/react");
+              await signOut({ redirect: false });
+            }
+            // localStorage 정리
             localStorage.removeItem("userName");
             localStorage.removeItem("entryMode");
+            // 홈으로 이동
             router.push("/");
           }}
           className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
@@ -366,7 +378,7 @@ export default function ChatPage() {
                     </span>
                   </div>
                 )}
-                
+
                 {/* 메시지 본문 */}
                 <div
                   className={`px-4 py-2 rounded-lg ${
