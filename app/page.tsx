@@ -70,7 +70,7 @@ export default function HomePage() {
     <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/20 via-background to-primary/10">
       {/* PWA 설치 프롬프트 */}
       <InstallPrompt />
-      
+
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
