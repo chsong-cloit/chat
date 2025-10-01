@@ -25,7 +25,6 @@ export default function ChatPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [myMessageIds, setMyMessageIds] = useState<Set<string>>(new Set()); // 내가 보낸 메시지 ID 추적
   const messagesEndRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       node.scrollIntoView({ behavior: "smooth" });
@@ -154,17 +153,25 @@ export default function ChatPage() {
             if (data.type === "connected") {
               console.log("SSE 연결 확인됨!");
             } else if (data.type === "new_message") {
-              const newMessage = {
-                ...data.message,
-                isOwn: data.message.senderName === userName, // 자신의 메시지인지 확인
-              };
-
               console.log(
                 "새 메시지 수신:",
-                newMessage.text,
+                data.message.text,
                 "ID:",
-                newMessage.id
+                data.message.id,
+                "발신자:",
+                data.message.senderName
               );
+              
+              // 자신이 보낸 메시지는 SSE에서 무시 (낙관적 업데이트로 이미 표시됨)
+              if (data.message.senderName === userName) {
+                console.log("자신의 메시지 무시:", data.message.text);
+                return;
+              }
+
+              const newMessage = {
+                ...data.message,
+                isOwn: false, // 다른 사람 메시지
+              };
               
               setMessages((prev) => {
                 // 중복 메시지 방지 (메시지 ID로만 체크)
@@ -176,11 +183,6 @@ export default function ChatPage() {
 
                 return [...prev, newMessage];
               });
-              
-              // 내가 보낸 메시지면 ID 추적에 추가
-              if (newMessage.isOwn) {
-                setMyMessageIds((prev) => new Set(prev).add(newMessage.id));
-              }
             }
           } catch (error) {
             console.error("SSE 메시지 파싱 오류:", error);
@@ -270,9 +272,6 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        
-        // 서버에서 받은 메시지 ID를 추적에 추가 (SSE 중복 방지)
-        setMyMessageIds((prev) => new Set(prev).add(data.message.id));
         
         // 임시 메시지를 서버 메시지로 교체
         setMessages((prev) =>
