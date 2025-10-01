@@ -23,6 +23,50 @@ export default function ChatPage() {
   const [userName, setUserName] = useState<string>("");
   const [entryMode, setEntryMode] = useState<"github" | "name">("github");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const messagesEndRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      node.scrollIntoView({ behavior: "smooth" });
+    }
+  }, []);
+
+  // 스크롤 위치 확인 함수
+  const checkScrollPosition = (element: HTMLDivElement) => {
+    const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 100;
+    setShowScrollButton(!isAtBottom);
+    if (isAtBottom) {
+      setUnreadCount(0);
+    }
+  };
+
+  // 맨 아래로 스크롤
+  const scrollToBottom = () => {
+    const messagesContainer = document.getElementById("messages-container");
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      setShowScrollButton(false);
+      setUnreadCount(0);
+    }
+  };
+
+  // 메시지 변경 시 자동 스크롤 처리
+  useEffect(() => {
+    const messagesContainer = document.getElementById("messages-container");
+    if (messagesContainer && messages.length > 0) {
+      const isAtBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
+      
+      if (isAtBottom) {
+        // 맨 아래에 있으면 자동 스크롤
+        setTimeout(() => {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+      } else {
+        // 맨 아래가 아니면 읽지 않은 메시지 카운트 증가
+        setUnreadCount((prev) => prev + 1);
+      }
+    }
+  }, [messages]);
 
   // loadMessages 함수 완전 제거 - SSE만 사용
 
@@ -109,7 +153,12 @@ export default function ChatPage() {
                 isOwn: data.message.senderName === userName, // 자신의 메시지인지 확인
               };
 
-              console.log("새 메시지 추가:", newMessage.text, "isOwn:", newMessage.isOwn);
+              console.log(
+                "새 메시지 추가:",
+                newMessage.text,
+                "isOwn:",
+                newMessage.isOwn
+              );
               setMessages((prev) => {
                 // 중복 메시지 방지 (메시지 ID로만 체크)
                 const exists = prev.some((msg) => msg.id === newMessage.id);
@@ -212,12 +261,10 @@ export default function ChatPage() {
         // 임시 메시지를 서버 메시지로 교체
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === tempMessage.id
-              ? { ...data.message, isOwn: true }
-              : msg
+            msg.id === tempMessage.id ? { ...data.message, isOwn: true } : msg
           )
         );
-        
+
         // SSE에서 중복 수신되는 것을 방지하기 위해 이미 추가된 메시지 ID 저장
         // (SSE의 중복 체크가 이를 처리함)
       } else {
@@ -295,7 +342,11 @@ export default function ChatPage() {
       </div>
 
       {/* 메시지 영역 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        id="messages-container"
+        className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+        onScroll={(e) => checkScrollPosition(e.currentTarget)}
+      >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -370,6 +421,35 @@ export default function ChatPage() {
               </div>
             </div>
           ))
+        )}
+
+        {/* 스크롤 다운 버튼 */}
+        {showScrollButton && (
+          <button
+            onClick={scrollToBottom}
+            className="fixed bottom-24 right-8 z-10 bg-primary text-primary-foreground rounded-full p-3 shadow-lg hover:bg-primary/90 transition-all"
+          >
+            <div className="relative">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </div>
+          </button>
         )}
       </div>
 
