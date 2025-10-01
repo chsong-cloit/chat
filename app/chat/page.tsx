@@ -25,6 +25,7 @@ export default function ChatPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [myMessageIds, setMyMessageIds] = useState<Set<string>>(new Set()); // 내가 보낸 메시지 ID 추적
   const messagesEndRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       node.scrollIntoView({ behavior: "smooth" });
@@ -33,7 +34,8 @@ export default function ChatPage() {
 
   // 스크롤 위치 확인 함수
   const checkScrollPosition = (element: HTMLDivElement) => {
-    const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 100;
+    const isAtBottom =
+      element.scrollHeight - element.scrollTop - element.clientHeight < 100;
     setShowScrollButton(!isAtBottom);
     if (isAtBottom) {
       setUnreadCount(0);
@@ -54,8 +56,12 @@ export default function ChatPage() {
   useEffect(() => {
     const messagesContainer = document.getElementById("messages-container");
     if (messagesContainer && messages.length > 0) {
-      const isAtBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
-      
+      const isAtBottom =
+        messagesContainer.scrollHeight -
+          messagesContainer.scrollTop -
+          messagesContainer.clientHeight <
+        100;
+
       if (isAtBottom) {
         // 맨 아래에 있으면 자동 스크롤
         setTimeout(() => {
@@ -154,21 +160,27 @@ export default function ChatPage() {
               };
 
               console.log(
-                "새 메시지 추가:",
+                "새 메시지 수신:",
                 newMessage.text,
-                "isOwn:",
-                newMessage.isOwn
+                "ID:",
+                newMessage.id
               );
+              
               setMessages((prev) => {
                 // 중복 메시지 방지 (메시지 ID로만 체크)
                 const exists = prev.some((msg) => msg.id === newMessage.id);
                 if (exists) {
-                  console.log("중복 메시지 무시:", newMessage.text);
+                  console.log("중복 메시지 무시 (이미 존재):", newMessage.text);
                   return prev;
                 }
 
                 return [...prev, newMessage];
               });
+              
+              // 내가 보낸 메시지면 ID 추적에 추가
+              if (newMessage.isOwn) {
+                setMyMessageIds((prev) => new Set(prev).add(newMessage.id));
+              }
             }
           } catch (error) {
             console.error("SSE 메시지 파싱 오류:", error);
@@ -258,15 +270,18 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
+        
+        // 서버에서 받은 메시지 ID를 추적에 추가 (SSE 중복 방지)
+        setMyMessageIds((prev) => new Set(prev).add(data.message.id));
+        
         // 임시 메시지를 서버 메시지로 교체
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempMessage.id ? { ...data.message, isOwn: true } : msg
           )
         );
-
-        // SSE에서 중복 수신되는 것을 방지하기 위해 이미 추가된 메시지 ID 저장
-        // (SSE의 중복 체크가 이를 처리함)
+        
+        console.log("메시지 전송 완료. 서버 ID:", data.message.id);
       } else {
         // 전송 실패 시 임시 메시지 제거
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
@@ -342,7 +357,7 @@ export default function ChatPage() {
       </div>
 
       {/* 메시지 영역 */}
-      <div 
+      <div
         id="messages-container"
         className="flex-1 overflow-y-auto p-4 space-y-4 relative"
         onScroll={(e) => checkScrollPosition(e.currentTarget)}
