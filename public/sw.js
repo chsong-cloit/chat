@@ -15,7 +15,7 @@ self.addEventListener("push", (event) => {
 
   if (event.data) {
     const data = event.data.json();
-    
+
     event.waitUntil(
       self.registration.showNotification(data.title, {
         body: data.body,
@@ -32,22 +32,24 @@ self.addEventListener("push", (event) => {
 // 알림 클릭
 self.addEventListener("notificationclick", (event) => {
   console.log("알림 클릭됨");
-  
+
   event.notification.close();
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // 이미 열려있는 창이 있으면 포커스
-      for (const client of clientList) {
-        if (client.url.includes("/chat") && "focus" in client) {
-          return client.focus();
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        // 이미 열려있는 창이 있으면 포커스
+        for (const client of clientList) {
+          if (client.url.includes("/chat") && "focus" in client) {
+            return client.focus();
+          }
         }
-      }
-      // 없으면 새 창 열기
-      if (clients.openWindow) {
-        return clients.openWindow("/chat");
-      }
-    })
+        // 없으면 새 창 열기
+        if (clients.openWindow) {
+          return clients.openWindow("/chat");
+        }
+      })
   );
 });
 
@@ -78,4 +80,3 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
-

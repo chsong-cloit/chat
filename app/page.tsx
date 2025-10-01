@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AuthForm } from "@/components/auth-form";
+import { InstallPrompt } from "@/components/install-prompt";
 
 export default function HomePage() {
   const [name, setName] = useState("");
@@ -67,6 +68,9 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/20 via-background to-primary/10">
+      {/* PWA 설치 프롬프트 */}
+      <InstallPrompt />
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
@@ -135,6 +139,18 @@ export default function HomePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* iOS Safari 사용자를 위한 안내 */}
+      <div className="mt-4 text-center max-w-md">
+        <p className="text-xs text-muted-foreground">
+          💡 앱으로 설치하고 싶으신가요?
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Chrome/Edge: 주소창 옆 설치 버튼 클릭
+          <br />
+          iOS Safari: 공유 → 홈 화면에 추가
+        </p>
+      </div>
     </main>
   );
 }

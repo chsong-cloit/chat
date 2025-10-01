@@ -9,4 +9,3 @@ console.log("\n다음 환경 변수를 .env.local에 추가하세요:\n");
 console.log(`NEXT_PUBLIC_VAPID_PUBLIC_KEY=${vapidKeys.publicKey}`);
 console.log(`VAPID_PRIVATE_KEY=${vapidKeys.privateKey}`);
 console.log("\n" + "=".repeat(60));
-

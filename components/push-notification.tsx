@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 
 export function PushNotification() {
-  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [permission, setPermission] =
+    useState<NotificationPermission>("default");
 
   useEffect(() => {
     if ("Notification" in window) {
@@ -24,7 +25,7 @@ export function PushNotification() {
       // Service Worker 등록 확인
       if ("serviceWorker" in navigator) {
         const registration = await navigator.serviceWorker.ready;
-        
+
         // 푸시 구독
         try {
           const subscription = await registration.pushManager.subscribe({
@@ -68,7 +69,9 @@ export function PushNotification() {
   return (
     <div className="p-4 bg-blue-50 border-b border-blue-200">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-blue-800">새 메시지 알림을 받으시겠습니까?</p>
+        <p className="text-sm text-blue-800">
+          새 메시지 알림을 받으시겠습니까?
+        </p>
         <button
           onClick={requestPermission}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
@@ -93,4 +96,3 @@ function urlBase64ToUint8Array(base64String: string) {
   }
   return outputArray;
 }
-

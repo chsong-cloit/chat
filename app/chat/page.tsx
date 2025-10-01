@@ -127,7 +127,8 @@ export default function ChatPage() {
 
             // 초기 로딩 후 맨 아래로 스크롤
             setTimeout(() => {
-              const messagesContainer = document.getElementById("messages-container");
+              const messagesContainer =
+                document.getElementById("messages-container");
               if (messagesContainer) {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
               }
